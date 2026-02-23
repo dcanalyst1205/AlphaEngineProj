@@ -1,11 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
-import {
-    calculateBlackScholes,
-    OptionsData
-} from "../lib/black-scholes";
-import { cn, formatCurrency, formatPercent } from "../lib/utils";
+import React, { useState, useEffect, useMemo } from "react";
 import {
     LineChart,
     Line,
@@ -16,392 +11,534 @@ import {
     ResponsiveContainer,
     AreaChart,
     Area,
+    BarChart,
+    Bar,
+    Cell,
     ReferenceLine
 } from "recharts";
 import {
-    Activity,
-    Info,
     TrendingUp,
     ShieldAlert,
-    Gauge,
-    Hash,
-    Calendar,
-    Zap,
+    Activity,
     ChevronRight,
-    HelpCircle,
     LayoutDashboard,
+    PieChart,
+    Zap,
+    Scale,
+    Target,
+    Filter,
     ArrowUpRight,
-    ArrowDownRight
+    ArrowDownRight,
+    Search,
+    RefreshCcw,
+    Layers,
+    Info,
+    Calendar,
+    Settings,
+    Clock,
+    BarChart3
 } from "lucide-react";
+import { cn, formatPercent } from "../lib/utils";
 
-// --- Components ---
+// --- Types ---
 
-const InputGroup = ({ label, icon: Icon, value, onChange, min, max, step, suffix = "" }: any) => (
-    <div className="space-y-3 group">
-        <div className="flex justify-between items-center px-1">
-            <label className="text-[10px] uppercase tracking-widest text-slate-500 font-bold flex items-center gap-2 group-hover:text-premium-400 transition-colors">
-                <Icon size={12} className="text-premium-500/50" />
-                {label}
-            </label>
-            <span className="text-xs font-mono text-white bg-white/5 px-2 py-0.5 rounded border border-white/10 group-focus-within:border-premium-500/50 transition-all">
-                {value}{suffix}
-            </span>
+interface DashboardData {
+    metrics: {
+        total_return: number;
+        cagr: number;
+        sharpe: number;
+        max_drawdown: number;
+        volatility: number;
+        hit_rate: number;
+    };
+    benchmark_metrics: {
+        total_return: number;
+        cagr: number;
+        sharpe: number;
+    };
+    equity_curve: { date: string; strategy: number; benchmark: number }[];
+    drawdown_curve: { date: string; drawdown: number }[];
+    feature_importance: { name: string; value: number }[];
+}
+
+// --- Sub-Components ---
+
+const MetricCard = ({ label, value, icon: Icon, color, description, trend }: any) => (
+    <div className="glass-panel p-6 hover:border-premium-500/30 transition-all duration-500 group cursor-default relative overflow-hidden">
+        <div className="flex justify-between items-start mb-4 relative z-10">
+            <div className={cn("p-2.5 rounded-xl bg-white/5 shadow-inner transition-transform duration-500 group-hover:scale-110", color)}>
+                <Icon size={20} />
+            </div>
+            <div className="group/info relative">
+                <Info size={14} className="text-slate-600 hover:text-slate-400 transition-colors" />
+                <div className="absolute bottom-full right-0 mb-3 w-64 p-4 bg-[#0d0d0f] border border-white/10 rounded-xl shadow-2xl opacity-0 translate-y-2 group-hover/info:opacity-100 group-hover/info:translate-y-0 transition-all pointer-events-none z-50 text-[11px] text-slate-300 font-medium leading-relaxed backdrop-blur-xl">
+                    <p className="font-bold text-white mb-1 uppercase tracking-widest text-[9px]">{label}</p>
+                    {description}
+                </div>
+            </div>
         </div>
-        <input
-            type="range"
-            min={min}
-            max={max}
-            step={step}
-            value={value}
-            onChange={(e) => onChange(parseFloat(e.target.value))}
-            className="w-full h-1 bg-white/5 rounded-lg appearance-none cursor-pointer accent-premium-500 hover:accent-premium-400 transition-all"
-        />
+        <div className="relative z-10">
+            <h3 className="text-slate-500 text-[10px] font-bold uppercase tracking-[0.25em] mb-1">{label}</h3>
+            <div className="flex items-baseline gap-3">
+                <p className="text-3xl font-bold text-white tracking-tighter font-mono">{value}</p>
+                {trend && (
+                    <span className={cn("text-[10px] font-bold flex items-center gap-0.5", trend > 0 ? "text-emerald-500" : "text-rose-500")}>
+                        {trend > 0 ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
+                        {Math.abs(trend)}%
+                    </span>
+                )}
+            </div>
+        </div>
+        {/* Subtle background glow */}
+        <div className={cn("absolute -right-4 -bottom-4 w-24 h-24 blur-3xl opacity-5 rounded-full transition-opacity duration-500 group-hover:opacity-10", color.replace('text-', 'bg-'))} />
     </div>
 );
 
-const PriceCard = ({ title, price, greeks, type }: { title: string, price: number, greeks: any, type: 'call' | 'put' }) => (
-    <div className={cn(
-        "glass-panel p-6 relative overflow-hidden group transition-all duration-500 hover:scale-[1.02]",
-        type === 'call' ? "hover:border-emerald-500/30" : "hover:border-rose-500/30"
-    )}>
-        {/* Decor */}
+const SectionHeader = ({ title, icon: Icon, description }: any) => (
+    <div className="mb-8 pl-1">
+        <h3 className="text-lg font-bold tracking-tight text-white flex items-center gap-3">
+            <div className="p-1.5 bg-premium-500/10 rounded-lg text-premium-400">
+                <Icon size={18} />
+            </div>
+            {title}
+        </h3>
+        {description && <p className="text-slate-500 text-xs mt-1 font-medium">{description}</p>}
+    </div>
+);
+
+const ChartCard = ({ title, icon: Icon, children, className, subtitle }: any) => (
+    <div className={cn("glass-panel p-8 group", className)}>
+        <div className="flex justify-between items-start mb-8">
+            <div>
+                <h3 className="text-sm font-bold tracking-[0.2em] text-white uppercase flex items-center gap-3 mb-1">
+                    <Icon size={16} className="text-premium-400 group-hover:rotate-12 transition-transform duration-500" />
+                    {title}
+                </h3>
+                {subtitle && <p className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider">{subtitle}</p>}
+            </div>
+            <div className="flex gap-2">
+                <button className="p-2 hover:bg-white/5 rounded-lg transition-all text-slate-600 hover:text-white border border-transparent hover:border-white/10 active:scale-95">
+                    <RefreshCcw size={14} />
+                </button>
+            </div>
+        </div>
+        <div className="h-[350px] w-full relative">
+            {children}
+        </div>
+    </div>
+);
+
+const SidebarCategory = ({ label, icon: Icon, children, active = false }: any) => (
+    <div className="space-y-2">
         <div className={cn(
-            "absolute -right-4 -top-4 w-24 h-24 blur-3xl opacity-10 rounded-full transition-all duration-700 group-hover:opacity-20",
-            type === 'call' ? "bg-emerald-500" : "bg-rose-500"
-        )} />
-
-        <div className="flex justify-between items-start mb-6">
-            <div>
-                <h3 className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">{title} PRICE</h3>
-                <p className="text-4xl font-bold tracking-tighter text-white font-mono">
-                    {formatCurrency(price)}
-                </p>
-            </div>
-            <div className={cn(
-                "p-2 rounded-lg bg-white/5",
-                type === 'call' ? "text-emerald-400" : "text-rose-400"
-            )}>
-                <Zap size={20} fill="currentColor" fillOpacity={0.1} />
-            </div>
+            "flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer transition-all duration-300 group",
+            active ? "bg-premium-600/10 text-premium-400 shadow-[inset_0_1px_10px_rgba(0,0,0,0.2)]" : "text-slate-500 hover:bg-white/[0.03] hover:text-slate-300"
+        )}>
+            <Icon size={18} className={cn("transition-colors", active ? "text-premium-400" : "text-slate-600 group-hover:text-slate-400")} />
+            <span className="text-xs font-bold tracking-wide uppercase">{label}</span>
+            {active && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-premium-500 animate-pulse shadow-[0_0_8px_rgba(74,99,140,0.8)]" />}
         </div>
-
-        <div className="grid grid-cols-2 gap-4 border-t border-white/5 pt-4 mt-2">
-            <div>
-                <span className="text-[10px] text-slate-500 uppercase font-bold block mb-1">Delta</span>
-                <span className="text-sm font-mono text-white/90">{(type === 'call' ? greeks.deltaCall : greeks.deltaPut).toFixed(3)}</span>
-            </div>
-            <div>
-                <span className="text-[10px] text-slate-500 uppercase font-bold block mb-1">Theta</span>
-                <span className="text-sm font-mono text-white/90">{(type === 'call' ? greeks.thetaCall : greeks.thetaPut).toFixed(3)}/d</span>
-            </div>
-            <div>
-                <span className="text-[10px] text-slate-500 uppercase font-bold block mb-1">Gamma</span>
-                <span className="text-sm font-mono text-white/90">{greeks.gamma.toFixed(4)}</span>
-            </div>
-            <div>
-                <span className="text-[10px] text-slate-500 uppercase font-bold block mb-1">Vega</span>
-                <span className="text-sm font-mono text-white/90">{greeks.vega.toFixed(3)}</span>
-            </div>
-        </div>
+        {active && children && <div className="pl-11 space-y-1">{children}</div>}
     </div>
 );
 
-const InfoTooltip = ({ text }: { text: string }) => (
-    <div className="group relative ml-2 inline-block">
-        <HelpCircle size={14} className="text-slate-600 hover:text-premium-400 transition-colors cursor-help" />
-        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-3 bg-[#1a1a1e] border border-white/10 rounded-lg shadow-2xl opacity-0 group-hover:opacity-100 transition-all pointer-events-none z-50 text-[11px] text-slate-300 leading-relaxed scale-95 group-hover:scale-100">
-            {text}
-        </div>
+const FilterControl = ({ label, value, type = "toggle" }: any) => (
+    <div className="flex items-center justify-between py-1.5">
+        <span className="text-[10px] text-slate-600 font-bold uppercase tracking-wider">{label}</span>
+        {type === "toggle" ? (
+            <div className={cn("w-7 h-4 rounded-full p-0.5 cursor-pointer transition-colors duration-300", value ? "bg-premium-500" : "bg-white/10")}>
+                <div className={cn("w-3 h-3 bg-white rounded-full transition-transform duration-300 shadow-sm", value ? "translate-x-3" : "translate-x-0")} />
+            </div>
+        ) : (
+            <span className="text-[10px] font-mono text-premium-400">{value}</span>
+        )}
     </div>
 );
 
 // --- Main Dashboard ---
 
-export default function OptionsDashboard() {
-    // State
-    const [spot, setSpot] = useState(150);
-    const [strike, setStrike] = useState(150);
-    const [vol, setVol] = useState(0.20); // 20%
-    const [tte, setTte] = useState(0.5); // 6 months
-    const [rfr, setRfr] = useState(0.05); // 5%
+export default function AlphaEngineDashboard() {
+    const [data, setData] = useState<DashboardData | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [showBenchmark, setShowBenchmark] = useState(true);
+    const [dateRange, setDateRange] = useState("3Y (Full)");
 
-    // Calculate Prices & Greeks
-    const currentData = useMemo(() =>
-        calculateBlackScholes(spot, strike, tte, rfr, vol),
-        [spot, strike, tte, rfr, vol]
-    );
-
-    // Chart Data Generation
-    const sensitivityData = useMemo(() => {
-        const points = [];
-        const range = 0.5; // +/- 50%
-        const minPrice = spot * (1 - range);
-        const maxPrice = spot * (1 + range);
-        const step = (maxPrice - minPrice) / 40;
-
-        for (let s = minPrice; s <= maxPrice; s += step) {
-            const data = calculateBlackScholes(s, strike, tte, rfr, vol);
-            points.push({
-                spot: s,
-                call: data.callPrice,
-                put: data.putPrice,
-                intrinsicCall: Math.max(0, s - strike),
-                intrinsicPut: Math.max(0, strike - s)
+    useEffect(() => {
+        fetch("/data/dashboard_stats.json")
+            .then((res) => res.json())
+            .then((json) => {
+                setData(json);
+                setLoading(false);
+            })
+            .catch((err) => {
+                console.error("Error loading dashboard data:", err);
+                setLoading(false);
             });
-        }
-        return points;
-    }, [spot, strike, tte, rfr, vol]);
+    }, []);
 
-    return (
-        <main className="min-h-screen bg-[#0a0a0b] text-slate-200 selection:bg-premium-500/30">
-            {/* Top Navigation / Status */}
-            <div className="border-b border-white/5 bg-[#0a0a0b]/80 backdrop-blur-md sticky top-0 z-40">
-                <div className="max-w-[1600px] mx-auto px-8 py-4 flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                        <div className="p-1.5 bg-premium-600 rounded-md shadow-[0_0_15px_rgba(93,120,163,0.3)]">
-                            <LayoutDashboard size={20} className="text-white" />
-                        </div>
-                        <div>
-                            <h1 className="text-lg font-bold tracking-tight text-white flex items-center gap-2">
-                                Black-Scholes Engine <span className="text-[10px] font-mono bg-premium-500/10 text-premium-400 px-1.5 py-0.5 rounded border border-premium-500/20">PRO v3.0</span>
-                            </h1>
-                        </div>
+    const filteredEquityCurve = useMemo(() => {
+        if (!data) return [];
+        // Local filtering simulation
+        if (dateRange === "1Y") return data.equity_curve.slice(-252);
+        return data.equity_curve;
+    }, [data, dateRange]);
+
+    if (loading || !data) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-[#0a0a0b]">
+                <div className="flex flex-col items-center gap-8">
+                    <div className="relative">
+                        <div className="w-16 h-16 border-t-2 border-r-2 border-premium-500 rounded-full animate-spin" />
+                        <Activity className="absolute inset-0 m-auto w-6 h-6 text-premium-400 animate-pulse" />
                     </div>
-                    <div className="flex items-center gap-6">
-                        <div className="hidden md:flex gap-4 items-center">
-                            <div className="flex flex-col items-end">
-                                <span className="text-[9px] uppercase tracking-widest text-slate-600 font-bold">Model</span>
-                                <span className="text-xs font-mono text-slate-300">Continuous-Time Diffusion</span>
-                            </div>
-                            <div className="w-px h-6 bg-white/10" />
-                            <div className="flex flex-col items-end">
-                                <span className="text-[9px] uppercase tracking-widest text-slate-600 font-bold">Accuracy</span>
-                                <span className="text-xs font-mono text-emerald-400">99.98% Float64</span>
-                            </div>
-                        </div>
-                        <button className="bg-white text-black px-4 py-1.5 rounded-full text-xs font-bold hover:bg-slate-200 transition-colors shadow-lg active:scale-95">
-                            Export Analysis
-                        </button>
+                    <div className="text-center space-y-2">
+                        <p className="text-xs font-bold tracking-[0.4em] uppercase text-white">Initialising Alpha Stream</p>
+                        <p className="text-[10px] font-mono text-slate-600 uppercase">Connecting to Tier-1 Liquidity Node...</p>
                     </div>
                 </div>
             </div>
+        );
+    }
 
-            <div className="max-w-[1600px] mx-auto p-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
-                {/* Left Sidebar: Controls */}
-                <aside className="lg:col-span-3 space-y-8">
-                    <div className="glass-panel p-6 border-premium-500/10 relative overflow-hidden">
-                        <div className="flex items-center justify-between mb-8">
-                            <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-premium-400 flex items-center gap-2">
-                                <Activity size={12} />
-                                Market Inputs
-                            </h2>
-                            <InfoTooltip text="Dynamic input parameters for real-time option valuation." />
-                        </div>
+    const kpis = [
+        {
+            label: "CAGR",
+            value: formatPercent(data.metrics.cagr),
+            icon: TrendingUp,
+            color: "text-emerald-400",
+            trend: 1.2,
+            description: "Compound Annual Growth Rate. Represents the smoothed annual return of the strategy, accounting for compounding over the backtest period."
+        },
+        {
+            label: "Information Ratio",
+            value: data.metrics.sharpe.toFixed(2),
+            icon: Scale,
+            color: "text-blue-400",
+            description: "A measure of risk-adjusted return. Specifically, it represents the strategy's excess return per unit of active risk (tracking error)."
+        },
+        {
+            label: "Max Drawdown",
+            value: formatPercent(data.metrics.max_drawdown),
+            icon: ShieldAlert,
+            color: "text-rose-400",
+            description: "The peak-to-trough decline during a specific record period. It measures the theoretical maximum loss a portfolio could have suffered."
+        },
+        {
+            label: "Alpha Hit Rate",
+            value: formatPercent(data.metrics.hit_rate),
+            icon: Target,
+            color: "text-amber-400",
+            description: "The proportion of periods where the engine successfully predicted the rank-order correctly relative to the cross-sectional mean."
+        },
+    ];
 
-                        <div className="space-y-8">
-                            <InputGroup
-                                label="Spot Price"
-                                icon={TrendingUp}
-                                value={spot}
-                                onChange={setSpot}
-                                min={10}
-                                max={1000}
-                                step={1}
-                                suffix="$"
-                            />
-                            <InputGroup
-                                label="Strike Price"
-                                icon={Hash}
-                                value={strike}
-                                onChange={setStrike}
-                                min={10}
-                                max={1000}
-                                step={1}
-                                suffix="$"
-                            />
-                            <InputGroup
-                                label="Volatility (IV)"
-                                icon={TrendingUp}
-                                value={vol}
-                                onChange={setVol}
-                                min={0.01}
-                                max={2.0}
-                                step={0.01}
-                                suffix={` (${(vol * 100).toFixed(0)}%)`}
-                            />
-                            <InputGroup
-                                label="Time to Expiry"
-                                icon={Calendar}
-                                value={tte}
-                                onChange={setTte}
-                                min={0.01}
-                                max={5}
-                                step={0.01}
-                                suffix={` Years (${(tte * 365).toFixed(0)}d)`}
-                            />
-                            <InputGroup
-                                label="Risk-Free Rate"
-                                icon={ShieldAlert}
-                                value={rfr}
-                                onChange={setRfr}
-                                min={0}
-                                max={0.2}
-                                step={0.001}
-                                suffix={` (${(rfr * 100).toFixed(1)}%)`}
-                            />
-                        </div>
-
-                        <div className="mt-10 p-4 rounded-xl bg-premium-500/5 border border-premium-500/10 text-[10px] text-slate-400 leading-relaxed">
-                            <div className="flex items-center gap-2 text-premium-400 mb-2 font-bold uppercase tracking-widest">
-                                <Zap size={10} /> Live Calibration
-                            </div>
-                            The model assumes 252 trading days per year and continuous compounding. IV represents implied volatility of the underlying.
-                        </div>
+    return (
+        <main className="min-h-screen bg-[#070708] flex selection:bg-premium-500/30">
+            {/* Sidebar Navigation */}
+            <nav className="w-72 border-r border-white/5 hidden xl:flex flex-col p-8 space-y-10 sticky top-0 h-screen bg-[#09090b]/50 backdrop-blur-3xl z-50">
+                <div className="flex items-center gap-4 px-2">
+                    <div className="w-10 h-10 bg-gradient-to-br from-premium-500 to-premium-700 rounded-xl shadow-2xl flex items-center justify-center border border-white/10 group cursor-pointer active:scale-95 transition-all">
+                        <LayoutDashboard size={20} className="text-white group-hover:rotate-6 transition-transform" />
                     </div>
-                </aside>
-
-                {/* Main Content */}
-                <div className="lg:col-span-9 space-y-8">
-                    {/* Top Row: Call/Put Comparison */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <PriceCard
-                            title="Call Option"
-                            price={currentData.callPrice}
-                            greeks={currentData}
-                            type="call"
-                        />
-                        <PriceCard
-                            title="Put Option"
-                            price={currentData.putPrice}
-                            greeks={currentData}
-                            type="put"
-                        />
+                    <div>
+                        <h1 className="text-sm font-black tracking-widest text-white uppercase">Alpha Engine</h1>
+                        <p className="text-[10px] font-bold text-premium-400/60 uppercase tracking-widest">Performance Terminal</p>
                     </div>
-
-                    {/* Middle Row: Main Visualizations */}
-                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-                        {/* Price Sensitivity Chart */}
-                        <div className="glass-panel p-8">
-                            <div className="flex justify-between items-center mb-8">
-                                <h3 className="text-sm font-bold uppercase tracking-widest text-white flex items-center gap-2">
-                                    <TrendingUp size={14} className="text-premium-400" />
-                                    Price Sensitivity (P/L)
-                                    <InfoTooltip text="Visualizes how the call (emerald) and put (rose) prices change as the underlying stock price moves." />
-                                </h3>
-                                <div className="flex gap-4 text-[10px] font-bold uppercase tracking-widest">
-                                    <span className="flex items-center gap-2 text-emerald-400">
-                                        <div className="w-2 h-2 rounded-full bg-emerald-400" /> Call
-                                    </span>
-                                    <span className="flex items-center gap-2 text-rose-400">
-                                        <div className="w-2 h-2 rounded-full bg-rose-400" /> Put
-                                    </span>
-                                </div>
-                            </div>
-                            <div className="h-[350px] w-full">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <AreaChart data={sensitivityData}>
-                                        <defs>
-                                            <linearGradient id="colorCall" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#10b981" stopOpacity={0.2} />
-                                                <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                                            </linearGradient>
-                                            <linearGradient id="colorPut" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.2} />
-                                                <stop offset="95%" stopColor="#f43f5e" stopOpacity={0} />
-                                            </linearGradient>
-                                        </defs>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
-                                        <XAxis
-                                            dataKey="spot"
-                                            stroke="#444"
-                                            fontSize={10}
-                                            tickFormatter={(val) => `$${val.toFixed(0)}`}
-                                            tickLine={false}
-                                            axisLine={false}
-                                        />
-                                        <YAxis
-                                            stroke="#444"
-                                            fontSize={10}
-                                            tickFormatter={(val) => `$${val.toFixed(0)}`}
-                                            tickLine={false}
-                                            axisLine={false}
-                                        />
-                                        <Tooltip
-                                            contentStyle={{ backgroundColor: "#111", border: "1px solid #333", borderRadius: "12px", fontSize: "11px" }}
-                                            itemStyle={{ padding: 0 }}
-                                            formatter={(val: number) => [`$${val.toFixed(2)}`, ""]}
-                                            labelFormatter={(val: number) => `Spot: $${val.toFixed(2)}`}
-                                        />
-                                        <Area type="monotone" dataKey="call" stroke="#10b981" strokeWidth={2} fill="url(#colorCall)" />
-                                        <Area type="monotone" dataKey="put" stroke="#f43f5e" strokeWidth={2} fill="url(#colorPut)" />
-                                        <ReferenceLine x={spot} stroke="#666" strokeDasharray="3 3" label={{ value: 'Current', position: 'top', fill: '#888', fontSize: 10 }} />
-                                        <ReferenceLine x={strike} stroke="#fff" strokeOpacity={0.1} label={{ value: 'Strike', position: 'bottom', fill: '#444', fontSize: 10 }} />
-                                    </AreaChart>
-                                </ResponsiveContainer>
-                            </div>
-                        </div>
-
-                        {/* Greeks Insight */}
-                        <div className="glass-panel p-8">
-                            <h3 className="text-sm font-bold uppercase tracking-widest text-white mb-8 flex items-center gap-2">
-                                <Gauge size={14} className="text-premium-400" />
-                                Greeks Visualization
-                            </h3>
-                            <div className="space-y-8">
-                                <div className="p-6 bg-white/[0.02] rounded-2xl border border-white/5">
-                                    <div className="flex justify-between items-center mb-6">
-                                        <span className="text-[10px] uppercase tracking-[0.2em] font-bold text-slate-500">Delta Exposure</span>
-                                        <div className="flex items-center gap-4">
-                                            <span className="text-xs font-mono text-emerald-400">Call: {currentData.deltaCall.toFixed(2)}</span>
-                                            <span className="text-xs font-mono text-rose-400">Put: {currentData.deltaPut.toFixed(2)}</span>
-                                        </div>
-                                    </div>
-                                    <div className="flex h-3 w-full bg-white/5 rounded-full overflow-hidden border border-white/5 shadow-inner">
-                                        <div
-                                            className="h-full bg-rose-500 rounded-full transition-all duration-700"
-                                            style={{ width: `${Math.abs(currentData.deltaPut) * 50}%`, marginLeft: `${(1 + currentData.deltaPut) * 50}%` }}
-                                        />
-                                        <div
-                                            className="h-full bg-emerald-500 rounded-full transition-all duration-700"
-                                            style={{ width: `${currentData.deltaCall * 50}%` }}
-                                        />
-                                    </div>
-                                    <div className="flex justify-between items-center mt-3 text-[9px] font-bold text-slate-600 uppercase">
-                                        <span>Short Delta</span>
-                                        <span>Neutral</span>
-                                        <span>Long Delta</span>
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-3 gap-4">
-                                    {[
-                                        { label: "Gamma", value: currentData.gamma.toFixed(4), desc: "Curvature" },
-                                        { label: "Vega", value: currentData.vega.toFixed(3), desc: "Vol Sensitivity" },
-                                        { label: "Rho", value: currentData.rhoCall.toFixed(3), desc: "Rate Impact" },
-                                    ].map((greek, i) => (
-                                        <div key={i} className="p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:border-premium-500/20 transition-colors text-center group">
-                                            <span className="text-[9px] uppercase font-bold text-slate-600 group-hover:text-premium-400 transition-colors">{greek.label}</span>
-                                            <span className="block text-xl font-bold font-mono text-white mt-1">{greek.value}</span>
-                                            <span className="text-[8px] text-slate-700 font-medium uppercase mt-1">{greek.desc}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Footer */}
-                    <footer className="pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4 text-slate-600 text-[9px] uppercase tracking-[0.2em]">
-                        <div className="flex items-center gap-4">
-                            <span>Professional Quantitative Suite</span>
-                            <div className="w-1 h-1 rounded-full bg-white/20" />
-                            <span className="text-white/40">Market Neutral Testing Environment</span>
-                        </div>
-                        <div className="font-mono">
-                            CALIBRATED: {new Date().toLocaleTimeString()}
-                        </div>
-                    </footer>
                 </div>
+
+                <div className="space-y-8">
+                    <div className="space-y-1">
+                        <p className="px-4 text-[9px] uppercase font-black text-slate-700 tracking-[0.3em] mb-4">Core Explorer</p>
+                        <SidebarCategory label="Overview" icon={Activity} active>
+                            <div className="space-y-3 pt-2">
+                                <div onClick={() => setDateRange("3Y (Full)")} className={cn("text-[10px] font-bold uppercase tracking-wider cursor-pointer hover:text-white transition-colors flex items-center gap-2", dateRange === "3Y (Full)" ? "text-premium-400" : "text-slate-600")}>
+                                    <Clock size={10} /> Full Backtest View
+                                </div>
+                                <div onClick={() => setDateRange("1Y")} className={cn("text-[10px] font-bold uppercase tracking-wider cursor-pointer hover:text-white transition-colors flex items-center gap-2", dateRange === "1Y" ? "text-premium-400" : "text-slate-600")}>
+                                    <Calendar size={10} /> LTM Analysis
+                                </div>
+                            </div>
+                        </SidebarCategory>
+                        <SidebarCategory label="Factor Exposure" icon={Layers} />
+                        <SidebarCategory label="Portfolio" icon={PieChart} />
+                        <SidebarCategory label="Risk Center" icon={ShieldAlert} />
+                    </div>
+
+                    <div className="space-y-4">
+                        <p className="px-4 text-[9px] uppercase font-black text-slate-700 tracking-[0.3em] mb-4">Deep Filters</p>
+                        <div className="px-4 space-y-2">
+                            <FilterControl label="Overlay Benchmark" value={showBenchmark} />
+                            <div onClick={() => setShowBenchmark(!showBenchmark)}>
+                                <FilterControl label="Logarithmic Scale" value={false} />
+                                <FilterControl label="Signal Smoothing" value={true} />
+                            </div>
+                            <FilterControl label="Universe" value="S&P 500" type="text" />
+                            <FilterControl label="Latency" value="2.4ms" type="text" />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="mt-auto">
+                    <div className="p-5 rounded-2xl bg-gradient-to-b from-white/[0.03] to-transparent border border-white/5 relative overflow-hidden group">
+                        <Zap size={10} className="absolute top-4 right-4 text-premium-400 opacity-20 group-hover:opacity-100 transition-opacity" />
+                        <p className="text-[10px] uppercase font-black text-slate-600 tracking-wider mb-3">Engine Status</p>
+                        <div className="space-y-3">
+                            <div className="flex justify-between items-center text-[10px] font-mono font-bold">
+                                <span className="text-slate-400 uppercase">Training IC</span>
+                                <span className="text-emerald-400">0.084</span>
+                            </div>
+                            <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                                <div className="w-[84%] h-full bg-emerald-500/50 rounded-full" />
+                            </div>
+                            <div className="flex justify-between items-center text-[10px] font-mono font-bold">
+                                <span className="text-slate-400 uppercase">Valid. Stability</span>
+                                <span className="text-premium-400">92%</span>
+                            </div>
+                            <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden">
+                                <div className="w-[92%] h-full bg-premium-500 rounded-full shadow-[0_0_8px_rgba(74,99,140,0.5)]" />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+
+            {/* Main Content Area */}
+            <div className="flex-1 max-w-[1700px] p-8 lg:p-14 space-y-12 overflow-y-auto">
+                {/* Global Header */}
+                <header className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-10 border-b border-white/5 pb-10">
+                    <div className="space-y-3">
+                        <div className="flex items-center gap-4">
+                            <span className="px-3 py-1 bg-premium-500/10 border border-premium-500/20 text-premium-400 text-[9px] font-black uppercase tracking-[0.2em] rounded-full">
+                                LIVE Backtest Report
+                            </span>
+                            <span className="text-slate-600 text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5">
+                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                Synchronized
+                            </span>
+                        </div>
+                        <h2 className="text-4xl font-black tracking-tighter text-white">Alpha Engine <span className="text-slate-700 font-light italic">v2.0</span> Strategy Audit</h2>
+                        <p className="text-slate-500 font-bold text-sm leading-relaxed max-w-2xl">
+                            Learning-to-Rank framework evaluating cross-sectional returns via deep-factor decomposition. Visualizing alpha-decay, risk-profiles, and ML signal quality metrics.
+                        </p>
+                    </div>
+                    <div className="flex flex-wrap gap-4">
+                        <div className="p-1 glass-panel bg-white/[0.02] flex items-center">
+                            <div className="px-5 py-3 border-r border-white/5">
+                                <p className="text-[9px] uppercase tracking-[0.2em] text-slate-600 font-black mb-1">Lookback</p>
+                                <p className="text-white font-mono text-xs font-bold">252D</p>
+                            </div>
+                            <div className="px-5 py-3">
+                                <p className="text-[9px] uppercase tracking-[0.2em] text-slate-600 font-black mb-1">Portfolio</p>
+                                <p className="text-white font-mono text-xs font-bold">Long/Short</p>
+                            </div>
+                        </div>
+                        <button className="px-6 py-4 bg-white text-black font-black uppercase tracking-widest text-[10px] rounded-2xl hover:bg-premium-400 hover:text-white transition-all duration-300 shadow-2xl active:scale-95 flex items-center gap-3">
+                            <RefreshCcw size={14} />
+                            Recalibrate Model
+                        </button>
+                    </div>
+                </header>
+
+                {/* Primary Metrics */}
+                <section>
+                    <SectionHeader
+                        title="Key Performance Indicators"
+                        icon={BarChart3}
+                        description="Real-time strategy health metrics adjusted for risk and transaction leakage."
+                    />
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        {kpis.map((kpi, i) => (
+                            <MetricCard key={i} {...kpi} />
+                        ))}
+                    </div>
+                </section>
+
+                {/* Analytical Charts */}
+                <section className="space-y-12">
+                    <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                        {/* Cumulative Equity Curve */}
+                        <ChartCard
+                            title="Alpha Stream Propagation"
+                            subtitle="Strategy vs S&P 500 Benchmark"
+                            icon={TrendingUp}
+                            className="xl:col-span-2"
+                        >
+                            <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={filteredEquityCurve}>
+                                    <defs>
+                                        <linearGradient id="colorStrat" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#5d78a3" stopOpacity={0.15} />
+                                            <stop offset="95%" stopColor="#5d78a3" stopOpacity={0} />
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#1c1c1e" vertical={false} />
+                                    <XAxis
+                                        dataKey="date"
+                                        stroke="#333"
+                                        fontSize={10}
+                                        tickLine={false}
+                                        axisLine={false}
+                                        minTickGap={100}
+                                        tick={{ fontWeight: 600 }}
+                                    />
+                                    <YAxis
+                                        stroke="#333"
+                                        fontSize={10}
+                                        tickFormatter={(val) => `${(val * 100).toFixed(0)}%`}
+                                        tickLine={false}
+                                        axisLine={false}
+                                        tick={{ fontWeight: 600 }}
+                                    />
+                                    <Tooltip
+                                        contentStyle={{ backgroundColor: "rgba(10,10,12,0.95)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", fontSize: "11px", backdropFilter: "blur(10px)", boxShadow: "0 20px 40px -10px rgba(0,0,0,0.5)" }}
+                                        formatter={(val: any) => [`${(Number(val) * 100).toFixed(2)}%`, "Active Return"]}
+                                        labelStyle={{ color: "#666", textTransform: "uppercase", fontWeight: 800, letterSpacing: "0.1em", fontSize: "9px", marginBottom: "4px" }}
+                                    />
+                                    <Area
+                                        type="monotone"
+                                        dataKey="strategy"
+                                        stroke="#5d78a3"
+                                        strokeWidth={3}
+                                        fill="url(#colorStrat)"
+                                        animationDuration={1500}
+                                    />
+                                    {showBenchmark && (
+                                        <Line
+                                            type="monotone"
+                                            dataKey="benchmark"
+                                            stroke="#222"
+                                            strokeDasharray="4 4"
+                                            dot={false}
+                                            strokeWidth={1.5}
+                                        />
+                                    )}
+                                    <ReferenceLine y={0} stroke="#333" strokeWidth={1} />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                            <div className="flex justify-center gap-8 mt-6">
+                                <div className="flex items-center gap-2.5">
+                                    <div className="w-3 h-1 bg-premium-400 rounded-full" />
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Alpha Engine Strategy</span>
+                                </div>
+                                <div className="flex items-center gap-2.5">
+                                    <div className="w-3 h-1 bg-white/10 border-t border-dashed rounded-full" />
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-600">S&P 500 Index</span>
+                                </div>
+                            </div>
+                        </ChartCard>
+
+                        {/* Feature Importance Decomposition */}
+                        <ChartCard title="Factor Contribution" subtitle="Alpha Predictor Significance" icon={Zap}>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart layout="vertical" data={data.feature_importance.slice(0, 10)} margin={{ left: 10 }}>
+                                    <XAxis type="number" hide />
+                                    <YAxis
+                                        type="category"
+                                        dataKey="name"
+                                        stroke="#444"
+                                        fontSize={9}
+                                        width={100}
+                                        tickLine={false}
+                                        axisLine={false}
+                                        tick={{ fontWeight: 800, textTransform: 'uppercase' }}
+                                    />
+                                    <Tooltip
+                                        cursor={{ fill: 'rgba(255,255,255,0.03)' }}
+                                        contentStyle={{ backgroundColor: "#0a0a0c", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px", fontSize: "10px" }}
+                                    />
+                                    <Bar dataKey="value" fill="#5d78a3" radius={[0, 4, 4, 0]} animationDuration={2000}>
+                                        {data.feature_importance.map((entry: any, index: number) => (
+                                            <Cell key={`cell-${index}`} fillOpacity={1 - index * 0.08} fill={index === 0 ? "#8ba8d9" : "#4a638c"} />
+                                        ))}
+                                    </Bar>
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </ChartCard>
+                    </div>
+
+                    <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+                        {/* Underwater Risk Analysis */}
+                        <ChartCard title="Risk Exposure (Drawdown)" subtitle="Maximum peak-to-trough amplitude" icon={ShieldAlert} className="h-[300px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={data.drawdown_curve}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#1c1c1e" vertical={false} />
+                                    <XAxis dataKey="date" hide />
+                                    <YAxis
+                                        stroke="#333"
+                                        fontSize={10}
+                                        tickFormatter={(val) => `${(val * 100).toFixed(0)}%`}
+                                        tickLine={false}
+                                        axisLine={false}
+                                    />
+                                    <Tooltip
+                                        contentStyle={{ backgroundColor: "#0a0a0c", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "12px", fontSize: "11px" }}
+                                        formatter={(val: any) => [`${(Number(val) * 100).toFixed(2)}%`, "Drawdown"]}
+                                    />
+                                    <Area type="monotone" dataKey="drawdown" stroke="#f43f5e" fill="#f43f5e" fillOpacity={0.05} strokeWidth={1.5} animationDuration={1000} />
+                                    <ReferenceLine y={-0.1} stroke="#f43f5e" strokeDasharray="5 5" strokeOpacity={0.2} label={{ value: '10% Limit', fill: '#444', fontSize: '9px', fontWeight: 800, position: 'insideBottomRight' }} />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        </ChartCard>
+
+                        {/* Informational Cards */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div className="glass-panel p-8 flex flex-col justify-between group hover:border-premium-500/20 transition-all">
+                                <div>
+                                    <div className="flex items-center gap-3 mb-6">
+                                        <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg">
+                                            <ArrowUpRight size={16} />
+                                        </div>
+                                        <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Model Stability</h4>
+                                    </div>
+                                    <p className="text-white text-lg font-bold tracking-tight mb-2">IC Decay Profile</p>
+                                    <p className="text-slate-500 text-xs leading-relaxed font-medium">
+                                        Predictive power (Rank IC) remains robust across 5-day holding periods with less than 12% decay in information coefficient.
+                                    </p>
+                                </div>
+                                <div className="mt-8 flex items-center justify-between">
+                                    <span className="text-[10px] uppercase font-black text-emerald-500 tracking-widest">Optimized for LTM</span>
+                                    <ChevronRight size={14} className="text-slate-700 group-hover:text-white transition-colors" />
+                                </div>
+                            </div>
+
+                            <div className="glass-panel p-8 flex flex-col justify-between group hover:border-premium-500/20 transition-all">
+                                <div>
+                                    <div className="flex items-center gap-3 mb-6">
+                                        <div className="p-2 bg-premium-500/10 text-premium-400 rounded-lg">
+                                            <Scale size={16} />
+                                        </div>
+                                        <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Risk Management</h4>
+                                    </div>
+                                    <p className="text-white text-lg font-bold tracking-tight mb-2">Cross-Sectional Vol</p>
+                                    <p className="text-slate-500 text-xs leading-relaxed font-medium">
+                                        Dynamic position sizing applied via Inverse-Variance scaling, ensuring active risk is concentrated in high-conviction signals.
+                                    </p>
+                                </div>
+                                <div className="mt-8 flex items-center justify-between">
+                                    <span className="text-[10px] uppercase font-black text-premium-400 tracking-widest">Risk Adjusted</span>
+                                    <ChevronRight size={14} className="text-slate-700 group-hover:text-white transition-colors" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                {/* Final Professional Footer */}
+                <footer className="pt-16 pb-12 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-8">
+                    <div className="flex items-center gap-6">
+                        <div className="flex items-center gap-3">
+                            <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+                            <span className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-400">Core Engine Online</span>
+                        </div>
+                        <div className="w-px h-4 bg-white/10" />
+                        <span className="text-slate-600 text-[9px] uppercase tracking-[0.3em] font-black">Powered by Alpha Engine ML Labs</span>
+                    </div>
+                    <div className="flex items-center gap-8 text-slate-700">
+                        <span className="text-[10px] font-mono tracking-tighter">BUILD: 2024.02.23.REV2</span>
+                        <span className="text-[10px] font-bold uppercase tracking-widest cursor-pointer hover:text-white transition-colors">Documentation</span>
+                        <span className="text-[10px] font-bold uppercase tracking-widest cursor-pointer hover:text-white transition-colors">API Docs</span>
+                    </div>
+                </footer>
             </div>
         </main>
     );
