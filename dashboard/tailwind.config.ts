@@ -9,18 +9,12 @@ const config: Config = {
     theme: {
         extend: {
             colors: {
-                background: "var(--background)",
-                foreground: "var(--foreground)",
+                border: "hsl(var(--border))",
+                input: "hsl(var(--input))",
+                ring: "hsl(var(--ring))",
+                background: "hsl(var(--background))",
+                foreground: "hsl(var(--foreground))",
                 premium: {
-                    50: "#f5f7fa",
-                    100: "#e4e9f2",
-                    200: "#ccd5e6",
-                    300: "#a9b9d4",
-                    400: "#7e96bc",
-                    500: "#5d78a3",
-                    600: "#485f88",
-                    700: "#3d4d6e",
-                    800: "#35415c",
                     900: "#2f394f",
                     950: "#1f2535",
                 }
