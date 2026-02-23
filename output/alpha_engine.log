@@ -1,0 +1,31 @@
+2026-02-17 17:03:15 | INFO    | __main__ | Alpha Engine v1.0 starting ...
+2026-02-17 17:03:15 | INFO    | __main__ | Config: C:\Users\dell\Documents\Antigravity Work\alpha_engine\config\config.yaml
+2026-02-17 17:03:15 | INFO    | __main__ | ============================================================
+2026-02-17 17:03:15 | INFO    | __main__ | STEP 1 / 7 — Loading data
+2026-02-17 17:03:15 | INFO    | __main__ | ============================================================
+2026-02-17 17:03:15 | INFO    | alpha_engine.data.data_loader | Downloading 82 tickers from yfinance …
+2026-02-17 17:03:15 | INFO    | alpha_engine.data.data_loader | Downloading batch 1–50 of 82
+2026-02-17 17:03:23 | INFO    | alpha_engine.data.data_loader | Downloading batch 51–82 of 82
+2026-02-17 17:03:25 | ERROR   | yfinance | $ATVI: possibly delisted; no timezone found
+2026-02-17 17:03:28 | ERROR   | yfinance | 
+1 Failed download:
+2026-02-17 17:03:28 | ERROR   | yfinance | ['ATVI']: possibly delisted; no timezone found
+2026-02-17 17:03:28 | INFO    | alpha_engine.data.data_loader | Downloaded 81 / 82 tickers
+2026-02-17 17:03:29 | INFO    | alpha_engine.data.data_loader | Universe loaded: 100 / 101 tickers with data
+2026-02-17 17:03:29 | INFO    | __main__ | Loaded 100 tickers + benchmark (SPY)
+2026-02-17 17:03:29 | INFO    | __main__ | ============================================================
+2026-02-17 17:03:29 | INFO    | __main__ | STEP 2 / 7 — Engineering features
+2026-02-17 17:03:29 | INFO    | __main__ | ============================================================
+2026-02-17 17:03:58 | INFO    | alpha_engine.features.feature_engineering | Computing features: 25 / 100
+2026-02-17 17:04:51 | INFO    | alpha_engine.features.feature_engineering | Computing features: 50 / 100
+2026-02-17 17:06:03 | INFO    | alpha_engine.features.feature_engineering | Computing features: 75 / 100
+2026-02-17 17:07:13 | INFO    | alpha_engine.features.feature_engineering | Computing features: 100 / 100
+2026-02-17 17:07:16 | INFO    | alpha_engine.features.feature_engineering | Features computed for 100 tickers
+2026-02-17 17:07:16 | INFO    | __main__ | Computed features for 100 tickers, target horizon = 5 days
+2026-02-17 17:07:16 | INFO    | __main__ | ============================================================
+2026-02-17 17:07:16 | INFO    | __main__ | STEP 3 / 7 — Walk-forward backtest
+2026-02-17 17:07:16 | INFO    | __main__ | ============================================================
+2026-02-17 17:07:16 | INFO    | alpha_engine.backtest.walk_forward | Panel: 161459 rows, 26 features, date range 2018-06-25 → 2024-12-31
+2026-02-17 17:07:16 | INFO    | alpha_engine.backtest.walk_forward | Walk-forward: 55 rebalance dates
+2026-02-17 17:07:45 | INFO    | alpha_engine.backtest.walk_forward | Fold 10/55 | train→2021-03-26 | test 2021-04-05→2021-05-03 | IC=0.0467
+2026-02-17 17:08:16 | INFO    | alpha_engine.backtest.walk_forward | Fold 20/55 | train→2022-01-25 | test 2022-02-01→2022-03-02 | IC=-0.0321

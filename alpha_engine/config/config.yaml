@@ -1,0 +1,233 @@
+# ============================================================
+# Alpha Engine Configuration
+# ============================================================
+
+universe:
+  # Top liquid US equities — expand to 100-300 for production
+  tickers:
+    - AAPL
+    - MSFT
+    - AMZN
+    - GOOGL
+    - META
+    - NVDA
+    - TSLA
+    - JPM
+    - V
+    - UNH
+    - HD
+    - MA
+    - DIS
+    - BAC
+    - XOM
+    - PFE
+    - CSCO
+    - ADBE
+    - NFLX
+    - CMCSA
+    - PEP
+    - TMO
+    - COST
+    - AVGO
+    - ABT
+    - NKE
+    - WMT
+    - MRK
+    - CVX
+    - LLY
+    - ABBV
+    - ACN
+    - DHR
+    - MDT
+    - TXN
+    - QCOM
+    - LIN
+    - NEE
+    - BMY
+    - RTX
+    - AMGN
+    - UPS
+    - LOW
+    - HON
+    - PM
+    - IBM
+    - CAT
+    - BA
+    - GE
+    - SBUX
+    - AMAT
+    - BLK
+    - GILD
+    - ISRG
+    - ADP
+    - MMC
+    - SYK
+    - MDLZ
+    - CI
+    - ADI
+    - LRCX
+    - CB
+    - PLD
+    - TMUS
+    - MO
+    - GS
+    - BKNG
+    - AXP
+    - DE
+    - SO
+    - CL
+    - CME
+    - REGN
+    - DUK
+    - BDX
+    - TGT
+    - CSX
+    - CCI
+    - SHW
+    - ITW
+    - MMM
+    - FIS
+    - NOC
+    - APD
+    - ATVI
+    - HUM
+    - WM
+    - ORLY
+    - KLAC
+    - MCO
+    - PNC
+    - EQIX
+    - SNPS
+    - SLB
+    - EMR
+    - F
+    - KMB
+    - D
+    - EW
+
+  benchmark: SPY
+  start_date: "2012-01-01"
+  end_date: "2025-12-31"
+
+# ------------------------------------------------------------
+# Data storage
+# ------------------------------------------------------------
+data:
+  parquet_dir: "data/parquet"
+  raw_dir: "data/raw"
+
+# ------------------------------------------------------------
+# Feature engineering
+# ------------------------------------------------------------
+features:
+  momentum_windows: [21, 63, 126]       # 1m, 3m, 6m
+  volatility_windows: [20, 60]
+  rsi_period: 14
+  macd_fast: 12
+  macd_slow: 26
+  macd_signal: 9
+  atr_period: 14
+  volume_zscore_window: 20
+  beta_window: 60
+  skew_window: 60
+  kurt_window: 60
+  autocorr_lags: [5, 20]
+  sma_windows: [20, 50]
+  bollinger_window: 20
+  bollinger_std: 2.0
+  obv_slope_window: 20
+  vol_of_vol_window: 60
+  feature_lag: 1                         # days to shift features (leakage prevention)
+
+# ------------------------------------------------------------
+# Target
+# ------------------------------------------------------------
+target:
+  horizon: 5                             # 5-day forward log return
+  label: "fwd_log_ret_5d"
+
+# ------------------------------------------------------------
+# Model
+# ------------------------------------------------------------
+model:
+  types: ["lightgbm", "xgboost", "random_forest"]
+  primary: "lightgbm"
+  random_forest:
+    n_estimators: 500
+    max_depth: 6
+    min_samples_leaf: 50
+    n_jobs: -1
+    random_state: 42
+  xgboost:
+    n_estimators: 500
+    max_depth: 5
+    learning_rate: 0.05
+    subsample: 0.8
+    colsample_bytree: 0.8
+    reg_alpha: 0.1
+    reg_lambda: 1.0
+    random_state: 42
+    n_jobs: -1
+  lightgbm:
+    objective: "lambdarank"
+    metric: "ndcg"
+    n_estimators: 100
+    max_depth: 4
+    learning_rate: 0.03
+    subsample: 0.8
+    colsample_bytree: 0.8
+    reg_alpha: 0.1
+    reg_lambda: 1.0
+    random_state: 42
+    n_jobs: -1
+    verbose: -1
+
+# ------------------------------------------------------------
+# Walk-forward backtest
+# ------------------------------------------------------------
+walk_forward:
+  min_train_days: 504                    # ~2 years minimum training
+  rebalance_every: 63                    # trading days between rebalances
+  embargo_days: 5                        # gap between train/test to avoid leakage
+
+# ------------------------------------------------------------
+# Portfolio construction
+# ------------------------------------------------------------
+portfolio:
+  long_percentile: 80                    # top 20%
+  short_percentile: 20                   # bottom 20%
+  weighting: "equal"                     # "equal" or "volatility_adjusted"
+  max_position_weight: 0.10             # 10% cap per name
+  volatility_target: 0.12               # 12% annualized
+  vol_lookback: 63                       # days for trailing vol calc
+  max_turnover: 0.60                     # max single-period one-way turnover
+
+# ------------------------------------------------------------
+# Transaction costs
+# ------------------------------------------------------------
+costs:
+  commission_bps: 2.0                    # fixed commission in bps
+  slippage_vol_multiplier: 0.10          # slippage = multiplier * daily vol
+  spread_bps: 1.0                        # half-spread cost in bps
+
+# ------------------------------------------------------------
+# Risk
+# ------------------------------------------------------------
+risk:
+  max_drawdown_threshold: 0.20           # 20% drawdown circuit breaker
+  n_regimes: 3                           # for KMeans vol regime detection
+  regime_vol_window: 60
+
+# ------------------------------------------------------------
+# Output
+# ------------------------------------------------------------
+output:
+  results_dir: "output/results"
+  plots_dir: "output/plots"
+
+# ------------------------------------------------------------
+# Logging
+# ------------------------------------------------------------
+logging:
+  level: "INFO"
+  file: "output/alpha_engine.log"

@@ -1,0 +1,74 @@
+========================================================================
+  ALPHA ENGINE — PERFORMANCE SUMMARY REPORT
+========================================================================
+
+CONFIGURATION
+  Universe     : 100 tickers
+  Benchmark    : SPY
+  Date range   : 2018-01-01 -> 2024-12-31
+  Model        : lightgbm
+  Rebalance    : every 21 days
+  Vol target   : 12%
+
+------------------------------------------------------------------------
+  STRATEGY PERFORMANCE (NET OF COSTS)
+------------------------------------------------------------------------
+  total_return                 : 1.0147
+  cagr                         : 0.0665
+  ann_volatility               : 0.0982
+  sharpe                       : 0.6769
+  sortino                      : 0.9449
+  max_drawdown                 : -0.2121
+  calmar                       : 0.3134
+  hit_rate                     : 0.5288
+  skewness                     : -0.4121
+  kurtosis                     : 3.8225
+  best_day                     : 0.035181
+  worst_day                    : -0.054045
+  n_trading_days               : 2742
+  information_ratio            : -0.1496
+  avg_turnover                 : 0.4046
+
+------------------------------------------------------------------------
+  BENCHMARK PERFORMANCE (SPY BUY & HOLD)
+------------------------------------------------------------------------
+  total_return                 : 1.451
+  cagr                         : 0.0859
+  ann_volatility               : 0.156
+  sharpe                       : 0.5507
+  sortino                      : 0.5346
+  max_drawdown                 : -0.3372
+  calmar                       : 0.2547
+  hit_rate                     : 0.3541
+  skewness                     : -0.6239
+  kurtosis                     : 19.7834
+  best_day                     : 0.090603
+  worst_day                    : -0.109424
+  n_trading_days               : 2742
+
+------------------------------------------------------------------------
+  MODEL DIAGNOSTICS (WALK-FORWARD)
+------------------------------------------------------------------------
+  Total folds          : 132
+  Avg fold IC          : 0.0093
+  Avg fold hit rate    : 0.5532
+  Mean Daily IC        : 0.0205
+  Daily IC IR          : 0.1324
+  Daily IC t-stat      : 6.9452
+  In-sample periods    : 2753
+
+------------------------------------------------------------------------
+  TOP 10 FEATURES (by importance)
+------------------------------------------------------------------------
+  amihud_illiq                 : 2240.085249
+  price_to_high                : 2047.679724
+  log_dol_vol                  : 2018.289936
+  mom_12m_1m                   : 1908.362944
+  vol_stability                : 1774.057471
+  downside_skew                : 1581.169629
+  mom_6m_1m                    : 1436.476390
+  mom_accel                    : 1436.180735
+  price_to_sma50               : 1427.175837
+  vol_63d                      : 1326.552417
+
+========================================================================

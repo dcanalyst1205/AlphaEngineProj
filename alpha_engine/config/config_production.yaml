@@ -1,0 +1,186 @@
+# ============================================================
+# Alpha Engine Configuration — Optimized Production Setup
+# ============================================================
+
+universe:
+  tickers:
+    - AAPL
+    - MSFT
+    - AMZN
+    - GOOGL
+    - META
+    - NVDA
+    - TSLA
+    - JPM
+    - JNJ
+    - V
+    - PG
+    - UNH
+    - HD
+    - MA
+    - DIS
+    - BAC
+    - XOM
+    - PFE
+    - CSCO
+    - ADBE
+    - NFLX
+    - CMCSA
+    - PEP
+    - TMO
+    - COST
+    - AVGO
+    - ABT
+    - NKE
+    - WMT
+    - MRK
+    - CVX
+    - LLY
+    - ABBV
+    - ACN
+    - DHR
+    - MDT
+    - TXN
+    - QCOM
+    - LIN
+    - NEE
+    - BMY
+    - RTX
+    - AMGN
+    - UPS
+    - LOW
+    - HON
+    - PM
+    - IBM
+    - CAT
+    - BA
+    - GE
+    - SBUX
+    - AMAT
+    - BLK
+    - GILD
+    - ISRG
+    - ADP
+    - MMC
+    - SYK
+    - MDLZ
+    - CI
+    - ADI
+    - LRCX
+    - CB
+    - PLD
+    - TMUS
+    - MO
+    - GS
+    - BKNG
+    - AXP
+    - DE
+    - SO
+    - CL
+    - CME
+    - REGN
+    - DUK
+    - BDX
+    - TGT
+    - CSX
+    - CCI
+    - SHW
+    - ITW
+    - MMM
+    - FIS
+    - NOC
+    - APD
+    - HUM
+    - WM
+    - ORLY
+    - KLAC
+    - MCO
+    - PNC
+    - EQIX
+    - SNPS
+    - SLB
+    - EMR
+    - F
+    - KMB
+    - D
+    - EW
+
+  benchmark: SPY
+  start_date: "2018-01-01"
+  end_date: "2024-12-31"
+
+data:
+  parquet_dir: "data/parquet"
+  raw_dir: "data/raw"
+
+features:
+  momentum_windows: [21, 63, 126]
+  volatility_windows: [20, 60]
+  rsi_period: 14
+  macd_fast: 12
+  macd_slow: 26
+  macd_signal: 9
+  atr_period: 14
+  volume_zscore_window: 20
+  beta_window: 60
+  skew_window: 60
+  kurt_window: 60
+  autocorr_lags: [5, 20]
+  sma_windows: [20, 50]
+  bollinger_window: 20
+  bollinger_std: 2.0
+  obv_slope_window: 20
+  vol_of_vol_window: 60
+  feature_lag: 1
+
+target:
+  horizon: 5
+  label: "fwd_ret_5d"
+
+model:
+  types: ["lightgbm"]
+  primary: "lightgbm"
+  lightgbm:
+    n_estimators: 1000                   # More trees
+    max_depth: 4                         # Shallower trees to prevent overfitting
+    learning_rate: 0.01                  # Slower learning
+    subsample: 0.6                       # More row sampling
+    colsample_bytree: 0.6                # More column sampling
+    reg_alpha: 0.5                       # L1 Regularization
+    reg_lambda: 1.0                      # L2 Regularization
+    random_state: 42
+    n_jobs: -1
+    verbose: -1
+
+walk_forward:
+  min_train_days: 756                    # ~3 years training
+  rebalance_every: 21                    # Monthly rebalance
+  embargo_days: 5
+
+portfolio:
+  long_percentile: 85                    # Top 15% (stricter selection)
+  short_percentile: 15                   # Bottom 15%
+  weighting: "equal"
+  max_position_weight: 0.05
+  volatility_target: 0.12
+  vol_lookback: 63
+  max_turnover: 0.40                     # Stricter turnover limit
+  signal_smoothing_halflife: 5           # Smooth predictions to reduce turnover
+
+costs:
+  commission_bps: 2.0
+  slippage_vol_multiplier: 0.10
+  spread_bps: 1.0
+
+risk:
+  max_drawdown_threshold: 0.20
+  n_regimes: 3
+  regime_vol_window: 60
+
+output:
+  results_dir: "output/results_optimized"
+  plots_dir: "output/plots_optimized"
+
+logging:
+  level: "INFO"
+  file: "output/alpha_engine_opt.log"

@@ -1,0 +1,105 @@
+2026-02-22 19:21:22 | INFO    | __main__ | Alpha Engine v2.0 starting ...
+2026-02-22 19:21:22 | INFO    | __main__ | Config Path: C:\Users\dell\Documents\Antigravity Work\AlphaEngineProj\alpha_engine\config\config_production.yaml
+2026-02-22 19:21:22 | INFO    | __main__ | Alpha Engine v2.0 starting ...
+2026-02-22 19:21:22 | INFO    | __main__ | Config Details: alpha_engine\config\config_production.yaml
+2026-02-22 19:21:22 | INFO    | __main__ | ============================================================
+2026-02-22 19:21:22 | INFO    | __main__ | STEP 1 / 7 - Loading data
+2026-02-22 19:21:22 | INFO    | __main__ | ============================================================
+2026-02-22 19:21:26 | INFO    | alpha_engine.data.data_loader | Universe loaded: 100 / 100 tickers with data
+2026-02-22 19:21:26 | INFO    | __main__ | Loaded 100 tickers + benchmark (SPY)
+2026-02-22 19:21:26 | INFO    | __main__ | ============================================================
+2026-02-22 19:21:26 | INFO    | __main__ | STEP 2 / 7 - Engineering features (v2.0 Cross-Sectional)
+2026-02-22 19:21:26 | INFO    | __main__ | ============================================================
+2026-02-22 19:21:26 | INFO    | alpha_engine.features.feature_engineering | Computing features for 100 tickers...
+2026-02-22 19:21:27 | INFO    | alpha_engine.features.feature_engineering | Computing features: 25 / 100
+2026-02-22 19:21:27 | INFO    | alpha_engine.features.feature_engineering | Computing features: 50 / 100
+2026-02-22 19:21:27 | INFO    | alpha_engine.features.feature_engineering | Computing features: 75 / 100
+2026-02-22 19:21:27 | INFO    | alpha_engine.features.feature_engineering | Computing features: 100 / 100
+2026-02-22 19:21:27 | INFO    | alpha_engine.features.feature_engineering | Features computed for 100 tickers
+2026-02-22 19:21:27 | INFO    | alpha_engine.features.feature_engineering | Standardizing features cross-sectionally (vectorized)...
+2026-02-22 19:21:28 | INFO    | __main__ | Saving feature checkpoint to data\parquet\features_v2_checkpoint.parquet
+2026-02-22 19:21:30 | INFO    | __main__ | Computing forward return targets (horizon=5d)...
+2026-02-22 19:21:30 | INFO    | __main__ | Computed features & targets for 100 tickers
+2026-02-22 19:21:30 | INFO    | __main__ | ============================================================
+2026-02-22 19:21:30 | INFO    | __main__ | STEP 3 / 7 — Walk-forward backtest
+2026-02-22 19:21:30 | INFO    | __main__ | ============================================================
+2026-02-22 19:21:30 | INFO    | alpha_engine.backtest.walk_forward | Panel: 317729 rows, 15 features, date range 2012-01-03 → 2025-12-22
+2026-02-22 19:21:30 | INFO    | alpha_engine.backtest.walk_forward | Walk-forward: 132 rebalance dates
+2026-02-22 19:21:56 | INFO    | alpha_engine.backtest.walk_forward | Fold 10/132 | train→2015-10-06 | test 2015-10-13→2015-11-10 | IC=0.0854
+2026-02-22 19:22:21 | INFO    | alpha_engine.backtest.walk_forward | Fold 20/132 | train→2016-08-05 | test 2016-08-12→2016-09-12 | IC=0.0407
+2026-02-22 19:22:51 | INFO    | alpha_engine.backtest.walk_forward | Fold 30/132 | train→2017-06-07 | test 2017-06-14→2017-07-13 | IC=0.0006
+2026-02-22 19:23:28 | INFO    | alpha_engine.backtest.walk_forward | Fold 40/132 | train→2018-04-09 | test 2018-04-16→2018-05-14 | IC=0.0972
+2026-02-22 19:24:15 | INFO    | alpha_engine.backtest.walk_forward | Fold 50/132 | train→2019-02-07 | test 2019-02-14→2019-03-15 | IC=-0.0358
+2026-02-22 19:25:13 | INFO    | alpha_engine.backtest.walk_forward | Fold 60/132 | train→2019-12-06 | test 2019-12-13→2020-01-14 | IC=0.0775
+2026-02-22 19:26:10 | INFO    | alpha_engine.backtest.walk_forward | Fold 70/132 | train→2020-10-07 | test 2020-10-14→2020-11-11 | IC=-0.1105
+2026-02-22 19:27:32 | INFO    | alpha_engine.backtest.walk_forward | Fold 80/132 | train→2021-08-09 | test 2021-08-16→2021-09-14 | IC=0.1100
+2026-02-22 19:29:07 | INFO    | alpha_engine.backtest.walk_forward | Fold 90/132 | train→2022-06-08 | test 2022-06-15→2022-07-15 | IC=-0.0631
+2026-02-22 19:30:59 | INFO    | alpha_engine.backtest.walk_forward | Fold 100/132 | train→2023-04-11 | test 2023-04-18→2023-05-16 | IC=0.0068
+2026-02-22 19:33:18 | INFO    | alpha_engine.backtest.walk_forward | Fold 110/132 | train→2024-02-09 | test 2024-02-16→2024-03-18 | IC=0.0038
+2026-02-22 19:35:07 | INFO    | alpha_engine.backtest.walk_forward | Fold 120/132 | train→2024-12-10 | test 2024-12-17→2025-01-17 | IC=0.0270
+2026-02-22 19:37:29 | INFO    | alpha_engine.backtest.walk_forward | Fold 130/132 | train→2025-10-14 | test 2025-10-21→2025-11-18 | IC=-0.0511
+2026-02-22 19:37:57 | INFO    | alpha_engine.backtest.walk_forward | Fold 132/132 | train→2025-12-12 | test 2025-12-19→2025-12-22 | IC=0.0056
+2026-02-22 19:37:57 | INFO    | alpha_engine.backtest.walk_forward | Walk-forward complete: 132 folds, avg IC=0.0093, avg hit=0.553
+2026-02-22 19:37:57 | INFO    | __main__ | ============================================================
+2026-02-22 19:37:57 | INFO    | __main__ | STEP 4 / 7 — Portfolio construction
+2026-02-22 19:37:57 | INFO    | __main__ | ============================================================
+2026-02-22 19:37:58 | INFO    | alpha_engine.portfolio.portfolio_construction | Smoothing predictions with halflife=5 days
+2026-02-22 19:39:05 | INFO    | alpha_engine.portfolio.portfolio_construction | Portfolio built: 2742 trading days, 131 rebalances
+2026-02-22 19:39:05 | INFO    | __main__ | ============================================================
+2026-02-22 19:39:05 | INFO    | __main__ | STEP 5 / 7 — Risk analysis
+2026-02-22 19:39:05 | INFO    | __main__ | ============================================================
+2026-02-22 19:39:10 | INFO    | alpha_engine.risk.risk_management | Regime detection: {0: 2157, 2: 422, 1: 163}
+2026-02-22 19:39:10 | INFO    | __main__ | Risk metrics: {'VaR_95%': -0.009823, 'CVaR_95%': -0.014245, 'max_drawdown': -0.212145, 'max_drawdown_duration_days': 1131}
+2026-02-22 19:39:10 | INFO    | __main__ | ============================================================
+2026-02-22 19:39:10 | INFO    | __main__ | STEP 6 / 7 — Performance analytics
+2026-02-22 19:39:10 | INFO    | __main__ | ============================================================
+2026-02-22 19:39:10 | INFO    | __main__ | Strategy (net): {'total_return': 1.0147, 'cagr': 0.0665, 'ann_volatility': 0.0982, 'sharpe': 0.6769, 'sortino': 0.9449, 'max_drawdown': -0.2121, 'calmar': 0.3134, 'hit_rate': 0.5288, 'skewness': -0.4121, 'kurtosis': 3.8225, 'best_day': 0.035181, 'worst_day': -0.054045, 'n_trading_days': 2742, 'information_ratio': -0.1496}
+2026-02-22 19:39:10 | INFO    | __main__ | Benchmark     : {'total_return': 1.451, 'cagr': 0.0859, 'ann_volatility': 0.156, 'sharpe': 0.5507, 'sortino': 0.5346, 'max_drawdown': -0.3372, 'calmar': 0.2547, 'hit_rate': 0.3541, 'skewness': -0.6239, 'kurtosis': 19.7834, 'best_day': 0.090603, 'worst_day': -0.109424, 'n_trading_days': 2742}
+2026-02-22 19:39:10 | INFO    | __main__ | Avg one-way turnover per rebalance: 40.46%
+2026-02-22 19:39:10 | INFO    | __main__ | Evaluating signal decay …
+2026-02-22 19:39:14 | INFO    | __main__ | 
+Signal decay:
+           avg_ic  n_tickers
+horizon                     
+1        0.000442        100
+2        0.001051        100
+3        0.001070        100
+4        0.001264        100
+5        0.001412        100
+6        0.001154        100
+7        0.002160        100
+8        0.002374        100
+9        0.002385        100
+10       0.003315        100
+2026-02-22 19:39:14 | INFO    | __main__ | 
+Top features:
+amihud_illiq        2240.085249
+price_to_high       2047.679724
+log_dol_vol         2018.289936
+mom_12m_1m          1908.362944
+vol_stability       1774.057471
+downside_skew       1581.169629
+mom_6m_1m           1436.476390
+mom_accel           1436.180735
+price_to_sma50      1427.175837
+vol_63d             1326.552417
+mom_3m_1m           1324.333787
+idio_vol_63d        1084.555761
+beta_63d            1074.494360
+mom_1m               822.310604
+efficiency_ratio     576.569925
+2026-02-22 19:39:14 | INFO    | __main__ | Computing Information Coefficient (IC) stability ...
+2026-02-22 19:39:19 | INFO    | __main__ | IC Stability: {'mean_ic': 0.020466, 'std_ic': 0.154613, 'ic_ir': 0.1324, 'ic_t_stat': 6.9452, 'n_periods': 2753}
+2026-02-22 19:39:19 | INFO    | __main__ | ============================================================
+2026-02-22 19:39:19 | INFO    | __main__ | STEP 7 / 7 — Generating report & plots
+2026-02-22 19:39:19 | INFO    | __main__ | ============================================================
+2026-02-22 19:39:19 | INFO    | alpha_engine.analytics.performance_metrics | Report saved to output\results_optimized\summary_report.txt
+2026-02-22 19:39:23 | INFO    | alpha_engine.analytics.performance_metrics | Saved equity curve: output\plots_optimized\equity_curves.png
+2026-02-22 19:39:24 | INFO    | alpha_engine.analytics.performance_metrics | Saved drawdown chart: output\plots_optimized\drawdown.png
+2026-02-22 19:39:24 | INFO    | alpha_engine.analytics.performance_metrics | Saved rolling Sharpe: output\plots_optimized\rolling_sharpe.png
+2026-02-22 19:39:25 | INFO    | alpha_engine.analytics.performance_metrics | Saved feature importance chart: output\plots_optimized\feature_importance.png
+2026-02-22 19:39:25 | INFO    | __main__ | ============================================================
+2026-02-22 19:39:25 | INFO    | __main__ | Pipeline complete in 1083.0 seconds
+2026-02-22 19:39:25 | INFO    | __main__ | Results -> C:\Users\dell\Documents\Antigravity Work\AlphaEngineProj\output\results_optimized
+2026-02-22 19:39:25 | INFO    | __main__ | Plots   -> C:\Users\dell\Documents\Antigravity Work\AlphaEngineProj\output\plots_optimized
+2026-02-22 19:39:25 | INFO    | __main__ | ============================================================
