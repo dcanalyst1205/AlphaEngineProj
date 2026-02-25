@@ -3,72 +3,72 @@
 ========================================================================
 
 CONFIGURATION
-  Universe     : 20 tickers
+  Universe     : 99 tickers
   Benchmark    : SPY
-  Date range   : 2018-01-01 -> 2024-12-31
+  Date range   : 2012-01-01 -> 2025-12-31
   Model        : lightgbm
-  Rebalance    : every 21 days
+  Rebalance    : every 63 days
   Vol target   : 12%
 
 ------------------------------------------------------------------------
   STRATEGY PERFORMANCE (NET OF COSTS)
 ------------------------------------------------------------------------
-  total_return                 : -0.1009
-  cagr                         : -0.0215
-  ann_volatility               : 0.149
-  sharpe                       : -0.1441
-  sortino                      : -0.1926
-  max_drawdown                 : -0.2738
-  calmar                       : -0.0784
-  hit_rate                     : 0.4996
-  skewness                     : -0.5741
-  kurtosis                     : 6.0116
-  best_day                     : 0.048611
-  worst_day                    : -0.073839
-  n_trading_days               : 1235
-  information_ratio            : -0.7602
-  avg_turnover                 : 0.6068
+  total_return                 : 0.9084
+  cagr                         : 0.0567
+  ann_volatility               : 0.077
+  sharpe                       : 0.7367
+  sortino                      : 0.8731
+  max_drawdown                 : -0.1277
+  calmar                       : 0.444
+  hit_rate                     : 0.3093
+  skewness                     : -0.096
+  kurtosis                     : 4.4643
+  best_day                     : 0.027817
+  worst_day                    : -0.036418
+  n_trading_days               : 2952
+  information_ratio            : -0.1884
+  avg_turnover                 : 0.5915
 
 ------------------------------------------------------------------------
   BENCHMARK PERFORMANCE (SPY BUY & HOLD)
 ------------------------------------------------------------------------
-  total_return                 : 0.9575
-  cagr                         : 0.1469
-  ann_volatility               : 0.2113
-  sharpe                       : 0.6952
-  sortino                      : 0.8512
+  total_return                 : 1.451
+  cagr                         : 0.0795
+  ann_volatility               : 0.1503
+  sharpe                       : 0.5291
+  sortino                      : 0.4951
   max_drawdown                 : -0.3372
-  calmar                       : 0.4356
-  hit_rate                     : 0.5474
-  skewness                     : -0.5418
-  kurtosis                     : 11.4048
+  calmar                       : 0.2359
+  hit_rate                     : 0.3289
+  skewness                     : -0.6388
+  kurtosis                     : 21.5133
   best_day                     : 0.090603
   worst_day                    : -0.109424
-  n_trading_days               : 1235
+  n_trading_days               : 2952
 
 ------------------------------------------------------------------------
   MODEL DIAGNOSTICS (WALK-FORWARD)
 ------------------------------------------------------------------------
-  Total folds          : 60
-  Avg fold IC          : -0.0214
-  Avg fold hit rate    : 0.5460
-  Mean Daily IC        : -0.0093
-  Daily IC IR          : -0.0346
-  Daily IC t-stat      : -1.2218
-  In-sample periods    : 1246
+  Total folds          : 48
+  Avg fold IC          : 0.0295
+  Avg fold hit rate    : 0.4620
+  Mean Daily IC        : 0.0160
+  Daily IC IR          : 0.0852
+  Daily IC t-stat      : 4.6707
+  In-sample periods    : 3005
 
 ------------------------------------------------------------------------
   TOP 10 FEATURES (by importance)
 ------------------------------------------------------------------------
-  vol_stability                : 379.182284
-  log_dol_vol                  : 324.877631
-  downside_skew                : 318.880345
-  amihud_illiq                 : 312.585974
-  beta_63d                     : 280.129039
-  price_to_high                : 269.088416
-  vol_63d                      : 266.666035
-  mom_12m_1m                   : 254.643144
-  idio_vol_63d                 : 249.476109
-  mom_3m_1m                    : 244.464561
+  idio_vol_63d                 : 9262.900523
+  vol_63d                      : 7909.633971
+  log_dol_vol                  : 1577.087365
+  mom_12m_1m                   : 1526.525886
+  amihud_illiq                 : 1481.312147
+  price_to_sma50               : 1232.094919
+  vol_stability                : 1143.800948
+  mom_6m_1m                    : 845.083309
+  downside_skew                : 754.412385
+  price_to_high                : 612.566974
 
 ========================================================================
