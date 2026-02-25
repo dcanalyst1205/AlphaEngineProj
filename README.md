@@ -2,7 +2,7 @@
 
 A **production-grade, research-oriented framework** for predicting equity returns and constructing systematic long-short portfolios using modern Machine Learning.
 
-**v2.0 Update**: Transitioned to a **Learning-to-Rank (LTR)** framework using **LightGBM LambdaRank**, significantly improving cross-sectional IC and alpha stability. Now includes a **premium visual dashboard** for performance analytics.
+**v2.0**: Transitioned to a **Learning-to-Rank (LTR)** framework with **LightGBM LambdaRank** (NDCG), inverse-volatility portfolio weighting, a Global Risk-Off regime filter, and stress testing (Monte Carlo, walk-forward robustness, beta leakage). Includes a **premium analytics dashboard**.
 
 ---
 
@@ -11,107 +11,127 @@ A **production-grade, research-oriented framework** for predicting equity return
 ```
 AlphaEngineProj/
 ├── alpha_engine/             ← Core engine (Python)
-│   ├── config/               ← All tunable parameters (.yaml)
-│   ├── data/                 ← OHLCV fetch (yfinance) + parquet I/O
-│   ├── features/             ← 30+ alpha features, leakage-safe
-│   ├── models/               ← LTR (LightGBM) & Regression factory
-│   ├── backtest/             ← Cross-sectional walk-forward engine
-│   ├── portfolio/            ← Long-short, vol-targeting, costs
-│   ├── risk/                 ← Vol regime detection, drawdown controls
-│   └── analytics/            ← Performance metrics (Sharpe, IC, NDCG)
-├── dashboard/                ← Premium Analytics UI (Next.js, Tailwind)
-├── export_for_dashboard.py   ← Bridge: Engine results → Dashboard JSON
-└── main.py                   ← CLI entry point
+│   ├── config/               ← config.yaml, smoke/production variants
+│   ├── data/                 ← OHLCV download (yfinance) + parquet cache
+│   ├── features/             ← 15+ cross-sectional alpha features, leakage-safe
+│   ├── models/               ← Model factory (LightGBM LambdaRank / XGBoost / RF)
+│   ├── backtest/             ← Expanding-window walk-forward engine
+│   ├── portfolio/            ← Long-short portfolio, vol-targeting, costs
+│   ├── risk/                 ← Vol regime detection, Global Risk-Off switch
+│   └── analytics/            ← Performance metrics, stress testing
+├── dashboard/                ← Analytics UI (Next.js 14, Tailwind CSS, Recharts)
+├── export_for_dashboard.py   ← Bridge: engine results → dashboard JSON
+└── requirements.txt
 ```
 
 ---
 
-## Methodology (v2.0: Learning-to-Rank)
+## Methodology
 
-### Cross-Sectional Ranking
-Unlike v1.0 which used point-wise regression, v2.0 utilizes a **Learning-to-Rank** framework.
-- **Model**: LightGBM `lambdarank` (NDCG optimized).
-- **Target**: Cross-sectional ranking of 5-day forward returns.
-- **Advantage**: Better captures the relative performance of stocks within a universe, which is the primary driver of long-short alpha.
+### Cross-Sectional Learning-to-Rank
+- **Model**: LightGBM `lambdarank` with NDCG optimisation
+- **Target**: Cross-sectional percentile rank of 21-day forward returns
+- **Walk-Forward**: Strict expanding-window with embargo gap to prevent leakage
 
-### Alpha Features (30+)
+### Alpha Features
 | Category | Features |
 |---|---|
-| Momentum | 1m, 3m, 6m log returns; 12m−1m momentum |
-| Volatility | 20d/60d realised vol, ATR(14), vol-of-vol |
-| Technical | RSI(14), MACD (line/signal/histogram) |
-| Volume | Volume z-score, 5d/20d ratio, OBV slope |
-| Statistical | Rolling skewness, kurtosis, autocorrelation (5d/20d) |
-| Cross-sectional | Beta vs SPY, idiosyncratic vol, cross-sectional ranking |
-| Regime | Vol-clustering ratio, KMeans vol-regime detection |
-| Mean reversion | Distance from SMA(20/50), Bollinger Band position |
+| Momentum | 12-1m, 6-1m, 3-1m, 1m (reversal), acceleration |
+| Liquidity | Log dollar volume, Amihud illiquidity, volume stability |
+| Trend | Efficiency ratio, 63d volatility, 50-day SMA ratio |
+| Cross-sectional | Rolling beta (63d), idiosyncratic vol, price-to-52w-high |
 
----
+### Portfolio Construction
+- Dollar-neutral long-short (top/bottom quintiles)
+- **Inverse-volatility weighting** for position sizing
+- Volatility targeting (15% annualised)
+- Transaction costs modelled: commission + spread + slippage
 
-## Visual Analytics (Next.js Dashboard)
+### Risk Management
+- **Global Risk-Off**: Cuts exposure when 60d vol exceeds 90th percentile **or** 200d SMA slope turns negative
+- Drawdown circuit breaker
+- Volatility regime detection (K-Means, 3 states)
 
-Alpha Engine now includes a **premium, responsive dashboard** built with **Next.js 14** and **Tailwind CSS**.
-
-- **Modern UI**: Sleek dark mode, glassmorphism, and responsive charts.
-- **Key Metrics**: CAGR, Sharpe, Max Drawdown, and Hit Rate.
-- **Interactive Charts**: Equity curves (Strategy vs Benchmark), Drawdown charts, and Feature Importance.
-- **Live Bridge**: Run `python export_for_dashboard.py` to sync engine results with the UI.
+### Stress Testing
+- **Monte Carlo** (2,000 bootstrap paths): confidence intervals for CAGR, Sharpe, max drawdown
+- **Walk-Forward Robustness**: 5-stage OOS Sharpe analysis
+- **Beta Leakage**: OLS regression to quantify residual market exposure
 
 ---
 
 ## Quick Start
 
-### 1. Core Engine (Python)
+### 1. Python Engine
 ```bash
-# Install dependencies
+# Create virtual env and install
+python -m venv .venv
+.venv\Scripts\activate          # Windows
 pip install -r requirements.txt
 
-# Run the engine
+# Run the full pipeline
 python -m alpha_engine.main --config alpha_engine/config/config.yaml
 
-# Export results for dashboard
+# Export results for the dashboard
 python export_for_dashboard.py
 ```
 
-### 2. Dashboard (Next.js)
+### 2. Dashboard
 ```bash
 cd dashboard
 npm install
 npm run dev
-# Go to http://localhost:3000
+# Open http://localhost:3000
+```
+
+### 3. Export with Custom Paths
+```bash
+python export_for_dashboard.py \
+    --results-dir output/results \
+    --output dashboard/public/data/dashboard_stats.json
 ```
 
 ---
 
 ## Configuration
 
-All parameters live in `alpha_engine/config/config.yaml`. Key v2.0 updates:
-- `model.primary`: `lightgbm` with `objective: "lambdarank"`
-- `model.lightgbm.metric`: `ndcg`
-- `portfolio.long_percentile`: Configurable for top/bottom buckets.
+All parameters are in `alpha_engine/config/config.yaml`. Notable v2.0 settings:
+
+| Key | Default | Description |
+|---|---|---|
+| `model.primary` | `lightgbm` | Active model (lightgbm / xgboost / random_forest) |
+| `model.lightgbm.objective` | `lambdarank` | Learning objective |
+| `portfolio.weighting` | `inverse_volatility` | Position sizing method |
+| `risk.regime_filter_enabled` | `true` | Enable Global Risk-Off filter |
+| `risk.vol_percentile_threshold` | `90` | Vol spike threshold (90th pct) |
 
 ---
 
 ## Performance Analytics
 
-- **Metrics**: CAGR, Sharpe, Sortino, Max Drawdown, Information Ratio, Hit Rate.
-- **Rank IC**: Daily Information Coefficient stability.
-- **NDCG**: Normalized Discounted Cumulative Gain for ranking quality.
-- **Signal Decay**: IC decay across 1–10 day horizons.
+Outputs saved to `output/results/`:
+
+| File | Contents |
+|---|---|
+| `summary_report.txt` | CAGR, Sharpe, Sortino, IC, drawdown |
+| `fold_metrics.csv` | Per-fold IC, hit rate, OOS R² |
+| `daily_ic.csv` | Daily cross-sectional IC time series |
+| `walk_forward_analysis.csv` | OOS Sharpe per robustness stage |
+| `monte_carlo.json` | Bootstrap CI for terminal wealth / CAGR |
+| `beta_leakage.csv` | OLS beta, alpha, R² vs benchmark |
 
 ---
 
-## Key Design Principles
+## Design Principles
 
-1. **No Lookahead Bias**: Shifted features, temporal splits, embargo gaps.
-2. **Institutional Methodology**: Transaction costs (bps + slippage) applied.
-3. **Cross-Sectional Focus**: Optimized for relative stock selection.
-4. **Visual Excellence**: Professional-grade dashboard for research presentation.
+1. **No Lookahead Bias** — all features shifted by ≥1 day; embargo on walk-forward splits
+2. **Realistic Costs** — bps commission + spread + volatility-proportional slippage
+3. **Market Neutral** — dollar-neutral long-short; beta monitored via OLS regression
+4. **Recruiter-Friendly Dashboard** — live performance analytics at `localhost:3000`
 
 ---
 
 ## Requirements
 
 - Python ≥ 3.10
-- Node.js ≥ 18.x (for Dashboard)
-- See `requirements.txt` and `dashboard/package.json`
+- Node.js ≥ 18 (for Dashboard)
+- See `requirements.txt` for Python packages and `dashboard/package.json` for JS

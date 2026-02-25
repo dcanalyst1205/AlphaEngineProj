@@ -49,10 +49,6 @@ Implements a robust set of relative-value features designed for learning-to-rank
 
 All features are Z-scored cross-sectionally per day to ensure stationarity.
 """
-
-    """
-    Compute features for the entire universe and normalize cross-sectionally.
-    """
     features: Dict[str, pd.DataFrame] = {}
     
     # Pre-compute Benchmark returns for beta/correlation

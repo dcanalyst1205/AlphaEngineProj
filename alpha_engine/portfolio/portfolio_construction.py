@@ -83,6 +83,7 @@ def construct_portfolio(
     vol_target = port_cfg["volatility_target"]
     vol_lookback = port_cfg["vol_lookback"]
     max_turnover = port_cfg["max_turnover"]
+    weighting = port_cfg.get("weighting", "equal")
 
     # --- Build daily returns matrix -------------------------------- #
     daily_ret = _build_returns_matrix(universe)
@@ -137,7 +138,13 @@ def construct_portfolio(
                 continue
 
             # Rank and select long/short
-            raw_weights = _rank_and_select(pred_cs, long_pct, short_pct)
+            raw_weights = _rank_and_select(
+                pred_cs, long_pct, short_pct,
+                weighting=weighting,
+                daily_ret=daily_ret,
+                current_date=reb_date,
+                vol_lookback=vol_lookback,
+            )
 
             # Position caps
             raw_weights = _apply_position_caps(raw_weights, max_pos)
@@ -228,14 +235,23 @@ def _rank_and_select(
     pred_cs: Dict[str, float],
     long_pct: float,
     short_pct: float,
+    weighting: str = "equal",
+    daily_ret: Optional[pd.DataFrame] = None,
+    current_date: Optional[pd.Timestamp] = None,
+    vol_lookback: int = 63,
 ) -> Dict[str, float]:
-    """Rank predictions and assign equal weights to long/short buckets.
+    """Rank predictions and assign weights to long/short buckets.
 
     Long top ``(100 - long_pct)``% and short bottom ``short_pct``%.
     Weights are dollar-neutral (sum to ~0).
+
+    Parameters
+    ----------
+    weighting : str
+        ``"equal"`` for equal weighting, ``"inverse_volatility"`` for
+        inverse-vol weighting (lower vol → higher weight).
     """
     s = pd.Series(pred_cs).dropna().sort_values()
-    n = len(s)
 
     short_cutoff = np.percentile(s.values, short_pct)
     long_cutoff = np.percentile(s.values, long_pct)
@@ -244,14 +260,64 @@ def _rank_and_select(
     longs = s[s >= long_cutoff].index.tolist()
 
     weights: Dict[str, float] = {}
+
+    if weighting == "inverse_volatility" and daily_ret is not None and current_date is not None:
+        weights = _inverse_volatility_weights(
+            longs, shorts, daily_ret, current_date, vol_lookback,
+        )
+    else:
+        # Equal weighting (original)
+        if longs:
+            w_long = 1.0 / len(longs)
+            for t in longs:
+                weights[t] = w_long
+        if shorts:
+            w_short = -1.0 / len(shorts)
+            for t in shorts:
+                weights[t] = w_short
+
+    return weights
+
+
+def _inverse_volatility_weights(
+    longs: List[str],
+    shorts: List[str],
+    daily_ret: pd.DataFrame,
+    current_date: pd.Timestamp,
+    vol_lookback: int = 63,
+) -> Dict[str, float]:
+    """Compute inverse-volatility weights for long and short buckets.
+
+    Lower realised volatility → higher weight (more stable assets
+    get larger allocations). Falls back to equal weighting if vol
+    data is insufficient.
+    """
+    dates_before = daily_ret.index[daily_ret.index < current_date]
+    lookback = dates_before[-vol_lookback:] if len(dates_before) >= vol_lookback else dates_before
+
+    def _get_inv_vols(tickers: List[str]) -> Dict[str, float]:
+        inv_vols: Dict[str, float] = {}
+        for t in tickers:
+            if t in daily_ret.columns and len(lookback) > 10:
+                vol = daily_ret.loc[lookback, t].std() * np.sqrt(252)
+                inv_vols[t] = 1.0 / max(vol, 0.01)  # floor to avoid div-by-zero
+            else:
+                inv_vols[t] = 1.0  # fallback to equal
+        return inv_vols
+
+    weights: Dict[str, float] = {}
+
     if longs:
-        w_long = 1.0 / len(longs)
+        long_ivols = _get_inv_vols(longs)
+        total_long = sum(long_ivols.values())
         for t in longs:
-            weights[t] = w_long
+            weights[t] = long_ivols[t] / total_long
+
     if shorts:
-        w_short = -1.0 / len(shorts)
+        short_ivols = _get_inv_vols(shorts)
+        total_short = sum(short_ivols.values())
         for t in shorts:
-            weights[t] = w_short
+            weights[t] = -(short_ivols[t] / total_short)
 
     return weights
 

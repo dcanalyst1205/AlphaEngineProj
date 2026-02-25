@@ -157,6 +157,92 @@ def check_drawdown_breach(
 
 
 # ------------------------------------------------------------------ #
+#  Global Risk-Off Switch                                              #
+# ------------------------------------------------------------------ #
+
+
+def compute_risk_off_signal(
+    returns: pd.Series,
+    vol_window: int = 60,
+    vol_percentile_threshold: int = 90,
+    sma_slope_window: int = 200,
+) -> pd.Series:
+    """Compute a binary risk-off signal.
+
+    Risk-off is triggered when **either** condition is true:
+      1. Rolling realised vol exceeds its own historical 90th percentile.
+      2. The slope of the ``sma_slope_window``-day SMA of the equity
+         curve is negative (i.e. the trend is down).
+
+    Parameters
+    ----------
+    returns : pd.Series
+        Daily strategy returns.
+    vol_window : int
+        Lookback for rolling volatility (default 60).
+    vol_percentile_threshold : int
+        Percentile threshold for vol spike detection (default 90).
+    sma_slope_window : int
+        Window for the trend filter SMA (default 200).
+
+    Returns
+    -------
+    pd.Series[bool]
+        True = risk-off (go to cash), False = risk-on (normal trading).
+    """
+    # Condition 1: Vol spike
+    vol = returns.rolling(vol_window).std() * np.sqrt(252)
+    expanding_pctl = vol.expanding(min_periods=vol_window).apply(
+        lambda s: pd.Series(s).rank(pct=True).iloc[-1], raw=False,
+    )
+    vol_spike = expanding_pctl > (vol_percentile_threshold / 100.0)
+
+    # Condition 2: Equity-curve trend filter
+    equity = (1 + returns).cumprod()
+    sma = equity.rolling(sma_slope_window, min_periods=sma_slope_window // 2).mean()
+    sma_slope = sma.diff(5)  # 5-day change in SMA as proxy for slope
+    trend_down = sma_slope < 0
+
+    risk_off = (vol_spike | trend_down).fillna(False)
+    risk_off.name = "risk_off"
+
+    n_off = int(risk_off.sum())
+    pct_off = n_off / max(len(risk_off), 1) * 100
+    logger.info(
+        "Risk-off signal: %d / %d days (%.1f%%) flagged",
+        n_off, len(risk_off), pct_off,
+    )
+    return risk_off
+
+
+def apply_regime_filter(
+    returns: pd.Series,
+    risk_off: pd.Series,
+) -> pd.Series:
+    """Zero-out returns during risk-off periods (shift to cash).
+
+    Parameters
+    ----------
+    returns : pd.Series
+        Daily strategy returns.
+    risk_off : pd.Series[bool]
+        True = risk-off day.
+
+    Returns
+    -------
+    pd.Series
+        Filtered returns (zero on risk-off days).
+    """
+    aligned = risk_off.reindex(returns.index, fill_value=False)
+    filtered = returns.where(~aligned, 0.0)
+    logger.info(
+        "Regime filter applied: zeroed %d of %d days",
+        int(aligned.sum()), len(returns),
+    )
+    return filtered
+
+
+# ------------------------------------------------------------------ #
 #  Helpers                                                             #
 # ------------------------------------------------------------------ #
 

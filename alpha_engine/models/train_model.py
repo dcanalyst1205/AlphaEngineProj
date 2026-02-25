@@ -9,7 +9,7 @@ used for alpha prediction.
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -138,21 +138,21 @@ def _train_lightgbm(
     # 1. Prepare Datasets
     # LightGBM requires data to be sorted by group for LambdaRank
     pass_groups = False
+    val_group_sizes = None  # initialised here to prevent UnboundLocalError
     objective = params.get("objective", "regression")
-    
+
     if objective == "lambdarank":
         if groups is None:
             raise ValueError("LambdaRank requires 'groups' (e.g. Date)")
-            
-        # LightGBM expects a list of group sizes (counts of items per group)
-        # Groups must be sorted/contiguous in data.
-        # We assume X_train is already sorted by Date (group).
-        train_group_sizes = groups.groupby(groups, sort=False).count().values
+
+        # LightGBM expects a list of group sizes (counts of items per group).
+        # Data must be sorted by group (date) before calling.
+        train_group_sizes = pd.Series(groups).groupby(groups, sort=False).count().values
         pass_groups = True
-        
+
         # Validation groups
         if X_val is not None and val_groups is not None:
-            val_group_sizes = val_groups.groupby(val_groups, sort=False).count().values
+            val_group_sizes = pd.Series(val_groups).groupby(val_groups, sort=False).count().values
             
     # Create LGBM Dataset
     dtrain = lgb.Dataset(X_train, label=y_train)

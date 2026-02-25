@@ -13,58 +13,62 @@ CONFIGURATION
 ------------------------------------------------------------------------
   STRATEGY PERFORMANCE (NET OF COSTS)
 ------------------------------------------------------------------------
-  total_return                 : -0.2457
-  cagr                         : -0.0698
-  ann_volatility               : 0.1315
-  sharpe                       : -0.5309
-  sortino                      : -0.75
-  max_drawdown                 : -0.3633
-  calmar                       : -0.1921
-  hit_rate                     : 0.4796
-  skewness                     : -0.0499
-  kurtosis                     : 5.9882
-  best_day                     : 0.045096
-  worst_day                    : -0.056283
-  n_trading_days               : 982
-  information_ratio            : -1.0128
-  avg_turnover                 : 0.6085
+  total_return                 : -0.1009
+  cagr                         : -0.0215
+  ann_volatility               : 0.149
+  sharpe                       : -0.1441
+  sortino                      : -0.1926
+  max_drawdown                 : -0.2738
+  calmar                       : -0.0784
+  hit_rate                     : 0.4996
+  skewness                     : -0.5741
+  kurtosis                     : 6.0116
+  best_day                     : 0.048611
+  worst_day                    : -0.073839
+  n_trading_days               : 1235
+  information_ratio            : -0.7602
+  avg_turnover                 : 0.6068
 
 ------------------------------------------------------------------------
   BENCHMARK PERFORMANCE (SPY BUY & HOLD)
 ------------------------------------------------------------------------
-  total_return                 : 0.6311
-  cagr                         : 0.1338
-  ann_volatility               : 0.1648
-  sharpe                       : 0.8115
-  sortino                      : 1.1417
-  max_drawdown                 : -0.245
-  calmar                       : 0.5461
-  hit_rate                     : 0.5387
-  skewness                     : -0.194
-  kurtosis                     : 1.9711
-  best_day                     : 0.054954
-  worst_day                    : -0.043482
-  n_trading_days               : 982
+  total_return                 : 0.9575
+  cagr                         : 0.1469
+  ann_volatility               : 0.2113
+  sharpe                       : 0.6952
+  sortino                      : 0.8512
+  max_drawdown                 : -0.3372
+  calmar                       : 0.4356
+  hit_rate                     : 0.5474
+  skewness                     : -0.5418
+  kurtosis                     : 11.4048
+  best_day                     : 0.090603
+  worst_day                    : -0.109424
+  n_trading_days               : 1235
 
 ------------------------------------------------------------------------
   MODEL DIAGNOSTICS (WALK-FORWARD)
 ------------------------------------------------------------------------
-  Total folds          : 48
-  Avg IC               : -0.0076
-  Avg hit rate         : 0.5016
+  Total folds          : 60
+  Avg fold IC          : -0.0214
+  Avg fold hit rate    : 0.5460
+  Mean Daily IC        : -0.0093
+  Daily IC IR          : -0.0346
+  Daily IC t-stat      : -1.2218
+  In-sample periods    : 1246
 
 ------------------------------------------------------------------------
   TOP 10 FEATURES (by importance)
 ------------------------------------------------------------------------
-  beta                         : 267.270833
-  autocorr_5d                  : 254.604167
-  vol_cluster_ratio            : 235.312500
-  idio_vol                     : 234.104167
-  vol_of_vol                   : 217.145833
-  autocorr_20d                 : 216.437500
-  mom_12m_1m                   : 213.750000
-  atr                          : 206.187500
-  volume_ratio_5_20            : 203.458333
-  vol_20d                      : 200.958333
+  vol_stability                : 379.182284
+  log_dol_vol                  : 324.877631
+  downside_skew                : 318.880345
+  amihud_illiq                 : 312.585974
+  beta_63d                     : 280.129039
+  price_to_high                : 269.088416
+  vol_63d                      : 266.666035
+  mom_12m_1m                   : 254.643144
+  idio_vol_63d                 : 249.476109
+  mom_3m_1m                    : 244.464561
 
 ========================================================================

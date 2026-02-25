@@ -37,8 +37,10 @@ from alpha_engine.features.feature_engineering import (
 from alpha_engine.backtest.walk_forward import run_walk_forward
 from alpha_engine.portfolio.portfolio_construction import construct_portfolio
 from alpha_engine.risk.risk_management import (
+    apply_regime_filter,
     check_drawdown_breach,
     compute_risk_metrics,
+    compute_risk_off_signal,
     detect_volatility_regime,
 )
 from alpha_engine.analytics.performance_metrics import (
@@ -51,6 +53,11 @@ from alpha_engine.analytics.performance_metrics import (
     plot_equity_curves,
     plot_feature_importance,
     plot_rolling_sharpe,
+)
+from alpha_engine.analytics.stress_testing import (
+    compute_beta_leakage,
+    run_monte_carlo,
+    run_walk_forward_analysis,
 )
 
 
@@ -82,7 +89,7 @@ def run_pipeline(config: Dict[str, Any], config_path: str = "Config"):
     t0 = time.time()
 
     # Logging is set up by checking config or caller
-    if logging.getLogger().handlers == []:
+    if not logging.getLogger().handlers:
         _setup_logging(config)
 
     logger = logging.getLogger(__name__)
@@ -204,16 +211,40 @@ def run_pipeline(config: Dict[str, Any], config_path: str = "Config"):
         ):
             logger.warning("⚠ Max drawdown threshold breached!")
 
+        # ---- 5a. Global Risk-Off Filter (v2.0) ----------------------- #
+        strategy_returns = port_result.net_returns  # baseline (unfiltered)
+        if risk_cfg.get("regime_filter_enabled", False):
+            logger.info("Computing Global Risk-Off signal ...")
+            risk_off = compute_risk_off_signal(
+                port_result.net_returns,
+                vol_window=risk_cfg.get("regime_vol_window", 60),
+                vol_percentile_threshold=risk_cfg.get("vol_percentile_threshold", 90),
+                sma_slope_window=risk_cfg.get("sma_slope_window", 200),
+            )
+            strategy_returns = apply_regime_filter(port_result.net_returns, risk_off)
+            logger.info("Filtered strategy returns available")
+        else:
+            strategy_returns = port_result.net_returns
+
+        # ---- 5b. Stress Testing (v2.0) ------------------------------- #
+        logger.info("=" * 60)
+        logger.info("STEP 5b — Stress testing & robustness")
+        logger.info("=" * 60)
+
+        # Align benchmark returns to strategy period (needed for beta leakage)
+        strat_dates = strategy_returns.index
+        bench_aligned = benchmark_ret.reindex(strat_dates).fillna(0)
+
+        wf_analysis = run_walk_forward_analysis(strategy_returns, n_stages=5)
+        mc_result = run_monte_carlo(strategy_returns, n_simulations=2000)
+        beta_result = compute_beta_leakage(strategy_returns, bench_aligned)
+
         # ---- 6. Performance analytics -------------------------------- #
         logger.info("=" * 60)
         logger.info("STEP 6 / 7 — Performance analytics")
         logger.info("=" * 60)
 
-        # Align benchmark returns to strategy period
-        strat_dates = port_result.net_returns.index
-        bench_aligned = benchmark_ret.reindex(strat_dates).fillna(0)
-
-        comparison = compare_vs_benchmark(port_result.net_returns, bench_aligned)
+        comparison = compare_vs_benchmark(strategy_returns, bench_aligned)
 
         logger.info("Strategy (net): %s", comparison["strategy"])
         logger.info("Benchmark     : %s", comparison["benchmark"])
@@ -267,31 +298,41 @@ def run_pipeline(config: Dict[str, Any], config_path: str = "Config"):
             port_result.gross_returns,
             bench_aligned,
             plots_dir / "equity_curves.png",
-            net_returns=port_result.net_returns,
+            net_returns=strategy_returns,
         )
-        plot_drawdown(port_result.net_returns, plots_dir / "drawdown.png")
-        plot_rolling_sharpe(port_result.net_returns, plots_dir / "rolling_sharpe.png")
+        plot_drawdown(strategy_returns, plots_dir / "drawdown.png")
+        plot_rolling_sharpe(strategy_returns, plots_dir / "rolling_sharpe.png")
+
+        # Save stress test results
+        if not wf_analysis.empty:
+            wf_analysis.to_csv(results_dir / "walk_forward_analysis.csv", index=False)
+        if mc_result:
+            import json
+            with open(results_dir / "monte_carlo.json", "w") as f_mc:
+                json.dump(mc_result, f_mc, indent=2)
+        if beta_result:
+            pd.Series(beta_result).to_csv(results_dir / "beta_leakage.csv")
 
         if wf_result.feature_importance is not None:
             plot_feature_importance(
                 wf_result.feature_importance, plots_dir / "feature_importance.png"
             )
 
+        # Save fold metrics
+        if wf_result.fold_metrics:
+            fold_df = pd.DataFrame(wf_result.fold_metrics)
+            fold_df.to_csv(results_dir / "fold_metrics.csv", index=False)
+
+        # Save signal decay
+        if not decay.empty:
+            decay.to_csv(results_dir / "signal_decay.csv")
+
+        # Save regime series
+        regimes.to_csv(results_dir / "regimes.csv")
+
     except Exception:
         logger.exception("Pipeline failed with an unhandled exception")
         sys.exit(1)
-
-    # Save fold metrics
-    if wf_result.fold_metrics:
-        fold_df = pd.DataFrame(wf_result.fold_metrics)
-        fold_df.to_csv(results_dir / "fold_metrics.csv", index=False)
-
-    # Save signal decay
-    if not decay.empty:
-        decay.to_csv(results_dir / "signal_decay.csv")
-
-    # Save regime series
-    regimes.to_csv(results_dir / "regimes.csv")
 
     elapsed = time.time() - t0
     logger.info("=" * 60)

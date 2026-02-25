@@ -196,7 +196,7 @@ walk_forward:
 portfolio:
   long_percentile: 80                    # top 20%
   short_percentile: 20                   # bottom 20%
-  weighting: "equal"                     # "equal" or "volatility_adjusted"
+  weighting: "inverse_volatility"             # "equal" or "inverse_volatility"
   max_position_weight: 0.10             # 10% cap per name
   volatility_target: 0.12               # 12% annualized
   vol_lookback: 63                       # days for trailing vol calc
@@ -217,6 +217,9 @@ risk:
   max_drawdown_threshold: 0.20           # 20% drawdown circuit breaker
   n_regimes: 3                           # for KMeans vol regime detection
   regime_vol_window: 60
+  regime_filter_enabled: true            # enable Global Risk-Off switch
+  vol_percentile_threshold: 90           # vol spike threshold percentile
+  sma_slope_window: 200                  # SMA trend filter window
 
 # ------------------------------------------------------------
 # Output

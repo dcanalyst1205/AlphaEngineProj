@@ -144,9 +144,9 @@ def run_walk_forward(
         y_test = y_test.reindex(X_test.index)
 
         # ---- 2. Cross-Sectional Target Ranking -------------------- #
-        # v2.0: Convert raw forward returns into percentile ranks [0, 1] 
-        # per day. This makes the target stationary and suitable for ranking.
-        y_train_rank = y_train.groupby(level="date").rank(pct=True)
+        # v2.0: Convert raw forward returns into 10 relevance levels (0-10)
+        # per day. This makes the target suitable for LambdaRank (LTR).
+        y_train_rank = (y_train.groupby(level="date").rank(pct=True) * 10).astype(int)
         # We don't necessarily rank y_test for evaluation (we'll compute IC vs raw),
         # but the model is trained on ranks.
         
