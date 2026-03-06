@@ -13,21 +13,21 @@ CONFIGURATION
 ------------------------------------------------------------------------
   STRATEGY PERFORMANCE (NET OF COSTS)
 ------------------------------------------------------------------------
-  total_return                 : 2.1411
-  cagr                         : 0.1026
-  ann_volatility               : 0.093
-  sharpe                       : 1.1031
-  sortino                      : 1.2781
-  max_drawdown                 : -0.1499
-  calmar                       : 0.6848
-  hit_rate                     : 0.3012
-  skewness                     : 0.0072
-  kurtosis                     : 4.5594
-  best_day                     : 0.030913
-  worst_day                    : -0.034426
+  total_return                 : 1.706
+  cagr                         : 0.0887
+  ann_volatility               : 0.0997
+  sharpe                       : 0.8901
+  sortino                      : 1.0073
+  max_drawdown                 : -0.1185
+  calmar                       : 0.7486
+  hit_rate                     : 0.2774
+  skewness                     : 0.1442
+  kurtosis                     : 5.8554
+  best_day                     : 0.040401
+  worst_day                    : -0.042706
   n_trading_days               : 2952
-  information_ratio            : 0.0861
-  avg_turnover                 : 0.5869
+  information_ratio            : 0.0122
+  avg_turnover                 : 0.5799
 
 ------------------------------------------------------------------------
   BENCHMARK PERFORMANCE (SPY BUY & HOLD)
