@@ -162,6 +162,19 @@ def construct_portfolio(
                 scaled_weights, current_weights, max_turnover
             )
 
+            # --- STRICT MARKET NEUTRAL CONSTRAINT ---
+            # Force the dollar-amount of Longs to equal Shorts exactly at every rebalance
+            l_sum = sum(w for w in final_weights.values() if w > 0)
+            s_sum = abs(sum(w for w in final_weights.values() if w < 0))
+            if l_sum > 0 and s_sum > 0:
+                target_leg = (l_sum + s_sum) / 2.0
+                final_weights = {
+                    t: (w * (target_leg / l_sum) if w > 0 else w * (target_leg / s_sum))
+                    for t, w in final_weights.items()
+                }
+            elif l_sum > 0 or s_sum > 0:
+                final_weights = {t: 0.0 for t in final_weights.keys()}
+
             # Transaction costs
             tc = _compute_transaction_costs(
                 current_weights, final_weights, daily_ret, day, cost_cfg
@@ -425,6 +438,7 @@ def _compute_transaction_costs(
 
     Costs = commission (bps) + spread (bps) + vol-proportional slippage.
     Applied on the absolute change in weight for each ticker.
+    We apply a quadratic penalty for high turnover to model market impact aggressively.
     """
     comm_bps = cost_cfg.get("commission_bps", 2.0) / 10_000
     spread_bps = cost_cfg.get("spread_bps", 1.0) / 10_000
@@ -438,15 +452,17 @@ def _compute_transaction_costs(
         if delta < 1e-8:
             continue
 
-        # Commission + spread (fixed)
-        cost = delta * (comm_bps + spread_bps)
+        # Commission + spread (fixed base) + Market impact penalty for high turnover (quadratic)
+        market_impact = (delta ** 2) * 50.0 / 10_000 # 50 bps impact for 100% delta
+        cost = delta * (comm_bps + spread_bps) + market_impact
 
         # Volatility-proportional slippage
         if ticker in daily_ret.columns:
             idx = daily_ret.index.get_loc(date) if date in daily_ret.index else -1
             if isinstance(idx, int) and idx >= 20:
                 recent_vol = daily_ret[ticker].iloc[idx - 20 : idx].std()
-                cost += delta * slip_mult * (recent_vol if not np.isnan(recent_vol) else 0)
+                # Multiply slippage by (1 + delta) to penalize high turnover further
+                cost += delta * slip_mult * (1.0 + delta * 2) * (recent_vol if not np.isnan(recent_vol) else 0)
 
         total_cost += cost
 

@@ -61,7 +61,9 @@ def predict(model: Any, X: pd.DataFrame) -> np.ndarray:
 
 
 def get_feature_importance(model: Any, flist: List[str]) -> pd.Series:
-    """Extract feature importance."""
+    """Extract feature importance, handling RFE selected features."""
+    selected = getattr(model, "selected_features", None)
+    
     if hasattr(model, "feature_importances_"):
         imps = model.feature_importances_
     elif hasattr(model, "feature_importance"):
@@ -69,6 +71,13 @@ def get_feature_importance(model: Any, flist: List[str]) -> pd.Series:
         imps = model.feature_importance(importance_type="gain")
     else:
         return pd.Series(0, index=flist)
+        
+    if selected is not None:
+        # Map back to full feature list (others get 0)
+        full_imps = pd.Series(0.0, index=flist)
+        for f, val in zip(selected, imps):
+            full_imps[f] = val
+        return full_imps.sort_values(ascending=False)
         
     return pd.Series(imps, index=flist).sort_values(ascending=False)
 
@@ -183,23 +192,102 @@ def _train_lightgbm(
              # Since our targets are continuous returns, LightGBM handles this.
              pass
 
+    # RFE: Recursive Feature Elimination to top 5
+    current_features = list(X_train.columns)
+    
     # Verbosity
     params["verbosity"] = -1
     
+    # If we have less than or equal to 5 features, no need to RFE
+    if len(current_features) <= 5:
+        final_model = lgb.train(
+            params,
+            dtrain,
+            num_boost_round=params.get("n_estimators", 1000),
+            valid_sets=valid_sets,
+            valid_names=valid_names,
+            callbacks=[
+                lgb.early_stopping(stopping_rounds=params.get("early_stopping_rounds", 50)),
+                lgb.log_evaluation(period=0), # Silent
+            ],
+        )
+        return final_model
+
+    while len(current_features) > 5:
+        # Update datasets with current features
+        dtrain_subset = lgb.Dataset(X_train[current_features], label=y_train)
+        if pass_groups:
+            dtrain_subset.set_group(train_group_sizes)
+            
+        valid_sets_subset = [dtrain_subset]
+        valid_names_subset = ["train"]
+        
+        if X_val is not None and y_val is not None:
+            dval_subset = lgb.Dataset(X_val[current_features], label=y_val, reference=dtrain_subset)
+            if pass_groups and objective == "lambdarank" and val_groups is not None:
+                dval_subset.set_group(val_group_sizes)
+            valid_sets_subset.append(dval_subset)
+            valid_names_subset.append("valid")
+            
+        # Train intermediate model
+        model = lgb.train(
+            params,
+            dtrain_subset,
+            num_boost_round=100,  # smaller boost round for intermediate RFE steps
+            valid_sets=valid_sets_subset,
+            valid_names=valid_names_subset,
+            callbacks=[
+                lgb.early_stopping(stopping_rounds=20),
+                lgb.log_evaluation(period=0),
+            ],
+        )
+        
+        # Get importances and drop bottom 20%
+        imps = model.feature_importance(importance_type="gain")
+        imp_series = pd.Series(imps, index=current_features).sort_values()
+        
+        drop_count = max(1, int(len(current_features) * 0.2))
+        if len(current_features) - drop_count < 5:
+            drop_count = len(current_features) - 5
+            
+        current_features = imp_series.iloc[drop_count:].index.tolist()
+        
+    logger.info("RFE selected top 5 features: %s", current_features)
+    
+    # Train final model on top 5 features
+    dtrain_final = lgb.Dataset(X_train[current_features], label=y_train)
+    if pass_groups:
+        dtrain_final.set_group(train_group_sizes)
+        
+    valid_sets_final = [dtrain_final]
+    valid_names_final = ["train"]
+    if X_val is not None and y_val is not None:
+        dval_final = lgb.Dataset(X_val[current_features], label=y_val, reference=dtrain_final)
+        if pass_groups and objective == "lambdarank" and val_groups is not None:
+            dval_final.set_group(val_group_sizes)
+        valid_sets_final.append(dval_final)
+        valid_names_final.append("valid")
+
     # Train
-    model = lgb.train(
+    final_model = lgb.train(
         params,
-        dtrain,
+        dtrain_final,
         num_boost_round=params.get("n_estimators", 1000),
-        valid_sets=valid_sets,
-        valid_names=valid_names,
+        valid_sets=valid_sets_final,
+        valid_names=valid_names_final,
         callbacks=[
             lgb.early_stopping(stopping_rounds=params.get("early_stopping_rounds", 50)),
             lgb.log_evaluation(period=0), # Silent
         ],
     )
     
-    return model
+    # Monkey-patch the predict method to only use the selected features
+    def _predict(X, original_predict=final_model.predict, features=current_features):
+        return original_predict(X[features])
+    
+    final_model.predict = _predict
+    final_model.selected_features = current_features
+    return final_model
 
 
 def _train_xgboost(X, y, params):

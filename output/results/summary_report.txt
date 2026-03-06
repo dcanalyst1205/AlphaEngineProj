@@ -5,7 +5,7 @@
 CONFIGURATION
   Universe     : 99 tickers
   Benchmark    : SPY
-  Date range   : 2012-01-01 -> 2025-12-31
+  Date range   : 2012-01-01 -> 2026-03-05
   Model        : lightgbm
   Rebalance    : every 63 days
   Vol target   : 12%
@@ -13,21 +13,21 @@ CONFIGURATION
 ------------------------------------------------------------------------
   STRATEGY PERFORMANCE (NET OF COSTS)
 ------------------------------------------------------------------------
-  total_return                 : 0.9084
-  cagr                         : 0.0567
-  ann_volatility               : 0.077
-  sharpe                       : 0.7367
-  sortino                      : 0.8731
-  max_drawdown                 : -0.1277
-  calmar                       : 0.444
-  hit_rate                     : 0.3093
-  skewness                     : -0.096
-  kurtosis                     : 4.4643
-  best_day                     : 0.027817
-  worst_day                    : -0.036418
+  total_return                 : 2.1411
+  cagr                         : 0.1026
+  ann_volatility               : 0.093
+  sharpe                       : 1.1031
+  sortino                      : 1.2781
+  max_drawdown                 : -0.1499
+  calmar                       : 0.6848
+  hit_rate                     : 0.3012
+  skewness                     : 0.0072
+  kurtosis                     : 4.5594
+  best_day                     : 0.030913
+  worst_day                    : -0.034426
   n_trading_days               : 2952
-  information_ratio            : -0.1884
-  avg_turnover                 : 0.5915
+  information_ratio            : 0.0861
+  avg_turnover                 : 0.5869
 
 ------------------------------------------------------------------------
   BENCHMARK PERFORMANCE (SPY BUY & HOLD)
@@ -50,25 +50,25 @@ CONFIGURATION
   MODEL DIAGNOSTICS (WALK-FORWARD)
 ------------------------------------------------------------------------
   Total folds          : 48
-  Avg fold IC          : 0.0295
-  Avg fold hit rate    : 0.4620
-  Mean Daily IC        : 0.0160
-  Daily IC IR          : 0.0852
-  Daily IC t-stat      : 4.6707
-  In-sample periods    : 3005
+  Avg fold IC          : 0.0306
+  Avg fold hit rate    : 0.4569
+  Mean Daily IC        : 0.0199
+  Daily IC IR          : 0.1033
+  Daily IC t-stat      : 5.6619
+  In-sample periods    : 3003
 
 ------------------------------------------------------------------------
   TOP 10 FEATURES (by importance)
 ------------------------------------------------------------------------
-  idio_vol_63d                 : 9262.900523
-  vol_63d                      : 7909.633971
-  log_dol_vol                  : 1577.087365
-  mom_12m_1m                   : 1526.525886
-  amihud_illiq                 : 1481.312147
-  price_to_sma50               : 1232.094919
-  vol_stability                : 1143.800948
-  mom_6m_1m                    : 845.083309
-  downside_skew                : 754.412385
-  price_to_high                : 612.566974
+  vol_63d                      : 11548.405484
+  idio_vol_63d                 : 7352.063534
+  log_dol_vol                  : 2576.103223
+  amihud_illiq                 : 2543.827616
+  mom_12m_1m                   : 2020.668277
+  price_to_sma50               : 914.269739
+  beta_63d                     : 295.163524
+  vol_stability                : 225.520476
+  price_to_high                : 22.927768
+  mom_6m_1m                    : 0.000000
 
 ========================================================================

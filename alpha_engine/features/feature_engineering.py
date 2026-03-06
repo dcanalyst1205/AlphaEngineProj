@@ -83,14 +83,14 @@ All features are Z-scored cross-sectionally per day to ensure stationarity.
 
 def compute_target_rank(
     price_series: pd.Series,
-    horizon: int = 21,
+    horizon: int = 7,
 ) -> pd.Series:
     """
     Compute forward returns for ranking.
     Actually, we compute raw forward returns here.
     Ranking happens inside the backtester or DataHandler before training.
     
-    The target is simply: Return(t to t+21).
+    The target is simply: Return(t to t+horizon).
     """
     # Forward return: (Price_{t+h} / Price_t) - 1
     fwd_ret = price_series.shift(-horizon) / price_series - 1.0
@@ -227,49 +227,74 @@ def _compute_single_ticker(
     return features_df
 
 
+# Sector mapping for top ~100 tickers to implement Sector Neutralization
+GICS_SECTOR_MAP = {
+    "AAPL": "Tech", "MSFT": "Tech", "NVDA": "Tech", "CSCO": "Tech", "ADBE": "Tech",
+    "TXN": "Tech", "QCOM": "Tech", "AMAT": "Tech", "IBM": "Tech", "AVGO": "Tech",
+    "ACN": "Tech", "ADI": "Tech", "LRCX": "Tech", "FIS": "Tech", "SNPS": "Tech",
+    "KLAC": "Tech", "INTC": "Tech", "CRM": "Tech", "AMD": "Tech", "INTU": "Tech",
+    "GOOGL": "Comm", "META": "Comm", "DIS": "Comm", "NFLX": "Comm", "CMCSA": "Comm",
+    "ATVI": "Comm", "TMUS": "Comm", "VZ": "Comm", "T": "Comm",
+    "AMZN": "ConsDisc", "TSLA": "ConsDisc", "HD": "ConsDisc", "NKE": "ConsDisc",
+    "LOW": "ConsDisc", "SBUX": "ConsDisc", "BKNG": "ConsDisc", "TGT": "ConsDisc",
+    "ORLY": "ConsDisc", "F": "ConsDisc", "MCD": "ConsDisc",
+    "JPM": "Fin", "BAC": "Fin", "GS": "Fin", "BLK": "Fin", "AXP": "Fin", "CME": "Fin",
+    "MCO": "Fin", "PNC": "Fin", "CB": "Fin", "V": "Fin", "MA": "Fin", "WFC": "Fin", "C": "Fin",
+    "UNH": "Health", "PFE": "Health", "TMO": "Health", "ABT": "Health", "MRK": "Health",
+    "LLY": "Health", "ABBV": "Health", "DHR": "Health", "MDT": "Health", "BMY": "Health",
+    "AMGN": "Health", "GILD": "Health", "ISRG": "Health", "SYK": "Health", "CI": "Health",
+    "REGN": "Health", "BDX": "Health", "HUM": "Health", "EW": "Health", "JNJ": "Health", "CVS": "Health",
+    "XOM": "Energy", "CVX": "Energy", "SLB": "Energy", "COP": "Energy", "EOG": "Energy",
+    "WMT": "Staples", "PEP": "Staples", "COST": "Staples", "PM": "Staples", "MO": "Staples",
+    "MDLZ": "Staples", "CL": "Staples", "KMB": "Staples", "KO": "Staples", "PG": "Staples",
+    "UPS": "Indus", "HON": "Indus", "CAT": "Indus", "BA": "Indus", "GE": "Indus", 
+    "ADP": "Indus", "MMC": "Indus", "DE": "Indus", "CSX": "Indus", "ITW": "Indus", 
+    "MMM": "Indus", "NOC": "Indus", "WM": "Indus", "EMR": "Indus", "UNP": "Indus", "RTX": "Indus", "LMT": "Indus",
+    "NEE": "Util", "DUK": "Util", "SO": "Util", "D": "Util",
+    "LIN": "Mat", "SHW": "Mat", "APD": "Mat",
+    "PLD": "RealEst", "CCI": "RealEst", "EQIX": "RealEst", "AMT": "RealEst"
+}
+
 def standardize_features_cross_sectional(
     features: Dict[str, pd.DataFrame],
 ) -> Dict[str, pd.DataFrame]:
     """
-    Z-score all features cross-sectionally per date.
-    Vectorized for performance to avoid gateway timeouts.
+    Z-score all features cross-sectionally per date and per sector.
+    This neutralizes the features so we are not accidentally betting all on one sector.
     """
     if not features:
         return features
         
-    logger.info("Standardizing features cross-sectionally (vectorized)...")
+    logger.info("Standardizing features cross-sectionally by sector...")
     
-    # 1. Stack: (Date, Ticker) -> Features
-    # Use a faster approach to build the panel
     all_dfs = []
     for ticker, df in features.items():
         if df.empty: continue
         d = df.copy()
         d["_ticker"] = ticker
+        d["_sector"] = GICS_SECTOR_MAP.get(ticker, "Other")
         all_dfs.append(d)
         
     full = pd.concat(all_dfs)
+    # Ensure index is named for merging
+    full.index.name = "_date"
+    cols = [c for c in full.columns if c not in ("_ticker", "_sector")]
     
-    # 2. Vectorized Z-Score
-    cols = [c for c in full.columns if c != "_ticker"]
+    # 2. Vectorized Z-Score by Date AND Sector
+    # Reset index to make _date a column for easier groupby/merge
+    full_reset = full.reset_index()
+    grouped = full_reset.groupby(["_date", "_sector"])[cols]
+    group_means = grouped.transform("mean")
+    group_stds = grouped.transform("std").replace(0, 1.0).fillna(1.0)
     
-    # Group by Date (index level 0)
-    # Using groupby.mean() and groupby.std() is faster than transform(zscore)
-    # for large number of groups/columns
-    group_means = full[cols].groupby(level=0).mean()
-    group_stds = full[cols].groupby(level=0).std()
+    # 3. Z-Score
+    full_z_vals = (full_reset[cols] - group_means) / group_stds
+    full_z = pd.DataFrame(full_z_vals.values, index=full.index, columns=cols)
     
-    # Handle zero std
-    group_stds = group_stds.replace(0, 1.0).fillna(1.0)
-    
-    # Align and broadcast
-    # reindex(full.index, level=0) broadcasts the group stats to every row
-    full_z = (full[cols] - group_means.reindex(full.index, level=0)) / group_stds.reindex(full.index, level=0)
-    
-    # 3. Clip and Fill
+    # 4. Clip and Fill
     full_z = full_z.clip(-3.0, 3.0).fillna(0.0)
     
-    # 4. Unstack back to dictionary
+    # 5. Unstack back to dictionary
     full_z["_ticker"] = full["_ticker"]
     
     output = {}

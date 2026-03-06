@@ -173,6 +173,7 @@ def compute_risk_off_signal(
       1. Rolling realised vol exceeds its own historical 90th percentile.
       2. The slope of the ``sma_slope_window``-day SMA of the equity
          curve is negative (i.e. the trend is down).
+      3. The strategy equity curve paper drawdown exceeds -10%.
 
     Parameters
     ----------
@@ -203,7 +204,12 @@ def compute_risk_off_signal(
     sma_slope = sma.diff(5)  # 5-day change in SMA as proxy for slope
     trend_down = sma_slope < 0
 
-    risk_off = (vol_spike | trend_down).fillna(False)
+    # Condition 3: Strategy Drawdown Stop-Loss (-10%)
+    peak = equity.cummax()
+    dd = (equity - peak) / peak
+    dd_breach = dd < -0.10
+
+    risk_off = (vol_spike | trend_down | dd_breach).fillna(False)
     risk_off.name = "risk_off"
 
     n_off = int(risk_off.sum())
