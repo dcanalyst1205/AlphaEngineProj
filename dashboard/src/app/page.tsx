@@ -244,7 +244,7 @@ const ChartCard = ({ title, icon: Icon, children, className, subtitle }: any) =>
                 </button>
             </div>
         </div>
-        <div className="h-[350px] w-full relative">
+        <div className="w-full relative">
             {children}
         </div>
     </div>
@@ -273,6 +273,14 @@ export default function AlphaEngineDashboard() {
     const [dateRange, setDateRange] = useState("3Y (Full)");
     const [activeView, setActiveView] = useState("Strategy Metrics");
     const [actionStatus, setActionStatus] = useState<Record<string, 'idle' | 'processing' | 'success'>>({});
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+        const checkMobile = () => setIsMobile(window.innerWidth < 1024);
+        checkMobile();
+        window.addEventListener("resize", checkMobile);
+        return () => window.removeEventListener("resize", checkMobile);
+    }, []);
 
     const handleAction = (action: string) => {
         setActionStatus(prev => ({ ...prev, [action]: 'processing' }));
@@ -388,7 +396,7 @@ export default function AlphaEngineDashboard() {
                             <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Market Status</span>
                             <div className="flex items-center gap-2">
                                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                <span className="text-[11px] font-mono font-bold text-emerald-400 uppercase">Live Pipeline Connected</span>
+                                <span className="text-[11px] font-mono font-bold text-emerald-400 uppercase">Live Pipeline Connected (Market Data: March 2026)</span>
                             </div>
                         </div>
                         <div className="h-8 w-[1px] bg-white/10 mx-2" />
@@ -543,7 +551,7 @@ export default function AlphaEngineDashboard() {
                                         </div>
                                     </div>
 
-                                    <ResponsiveContainer width="100%" height="100%">
+                                    <ResponsiveContainer width="100%" aspect={isMobile ? 1.2 : 2.5}>
                                         <AreaChart data={filteredEquityCurve} margin={{ top: 20, right: 30, left: 0, bottom: 0 }}>
                                             <defs>
                                                 <linearGradient id="colorStrat" x1="0" y1="0" x2="0" y2="1">
@@ -586,7 +594,7 @@ export default function AlphaEngineDashboard() {
                                                 <Line
                                                     type="monotone"
                                                     dataKey="benchmark"
-                                                    stroke="#222"
+                                                    stroke="#666"
                                                     strokeDasharray="4 4"
                                                     dot={false}
                                                     strokeWidth={2}
@@ -604,7 +612,7 @@ export default function AlphaEngineDashboard() {
                                         subtitle="Top 8 Features by Gain"
                                         icon={PieChart}
                                     >
-                                        <ResponsiveContainer width="100%" height="100%">
+                                        <ResponsiveContainer width="100%" aspect={isMobile ? 1.2 : 2.5}>
                                             <BarChart layout="vertical" data={data.feature_importance.slice(0, 8)} margin={{ left: 10 }}>
                                                 <XAxis type="number" hide />
                                                 <YAxis
@@ -658,7 +666,7 @@ export default function AlphaEngineDashboard() {
                                     subtitle="Historical Drawdown Depth (%)"
                                     icon={Scale}
                                 >
-                                    <ResponsiveContainer width="100%" height="100%">
+                                    <ResponsiveContainer width="100%" aspect={isMobile ? 1.2 : 2.5}>
                                         <AreaChart data={data.drawdown_curve}>
                                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ffffff05" />
                                             <XAxis dataKey="date" stroke="#444" fontSize={9} tickLine={false} axisLine={false} tick={{ fontWeight: 800, style: { textTransform: 'uppercase' } }} />
@@ -713,7 +721,7 @@ export default function AlphaEngineDashboard() {
                             {/* Factor Importance Chart */}
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                                 <ChartCard title="Factor Hierarchy" subtitle="Feature Importance by Information Gain" icon={BarChart3} className="lg:col-span-2">
-                                    <ResponsiveContainer width="100%" height="100%">
+                                    <ResponsiveContainer width="100%" aspect={isMobile ? 1.2 : 2.5}>
                                         <BarChart layout="vertical" data={data.feature_importance.slice(0, 12)} margin={{ left: 10 }}>
                                             <XAxis type="number" hide />
                                             <YAxis type="category" dataKey="name" stroke="#444" fontSize={9} width={120} tickLine={false} axisLine={false} tick={{ fontWeight: 900, style: { textTransform: 'uppercase', letterSpacing: '0.05em' } }} />
@@ -774,7 +782,7 @@ export default function AlphaEngineDashboard() {
                             {/* Drawdown Chart */}
                             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                                 <ChartCard title="Drawdown Profile" subtitle="Historical Peak-to-Trough Decline (%)" icon={Scale} className="lg:col-span-2">
-                                    <ResponsiveContainer width="100%" height="100%">
+                                    <ResponsiveContainer width="100%" aspect={isMobile ? 1.2 : 2.5}>
                                         <AreaChart data={data.drawdown_curve}>
                                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ffffff05" />
                                             <XAxis dataKey="date" stroke="#444" fontSize={9} tickLine={false} axisLine={false} tick={{ fontWeight: 800, style: { textTransform: 'uppercase' } }} />

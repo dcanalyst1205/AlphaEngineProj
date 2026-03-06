@@ -56,6 +56,8 @@ def _load_metrics_from_report(report_path: Path) -> Dict[str, float]:
     }
     try:
         for line in report_path.read_text(encoding="utf-8").splitlines():
+            if "BENCHMARK PERFORMANCE" in line:
+                break
             parts = line.split(":")
             if len(parts) < 2:
                 continue

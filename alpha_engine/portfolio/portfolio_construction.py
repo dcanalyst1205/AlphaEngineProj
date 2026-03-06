@@ -137,9 +137,9 @@ def construct_portfolio(
             if len(pred_cs) < 10:
                 continue
 
-            # Rank and select long/short
+            # Rank and select long/short with 5th percentile Confidence Threshold
             raw_weights = _rank_and_select(
-                pred_cs, long_pct, short_pct,
+                pred_cs, 95.0, 5.0, # Top/Bottom 5th percentile
                 weighting=weighting,
                 daily_ret=daily_ret,
                 current_date=reb_date,
@@ -175,9 +175,9 @@ def construct_portfolio(
             elif l_sum > 0 or s_sum > 0:
                 final_weights = {t: 0.0 for t in final_weights.keys()}
 
-            # Transaction costs
+            # Transaction costs with Square-Root Market Impact
             tc = _compute_transaction_costs(
-                current_weights, final_weights, daily_ret, day, cost_cfg
+                current_weights, final_weights, daily_ret, universe, day, cost_cfg
             )
 
             # Record
@@ -431,39 +431,53 @@ def _compute_transaction_costs(
     old_weights: Dict[str, float],
     new_weights: Dict[str, float],
     daily_ret: pd.DataFrame,
+    universe: Dict[str, pd.DataFrame],
     date: pd.Timestamp,
     cost_cfg: Dict[str, Any],
 ) -> float:
     """Model transaction costs for a single rebalance.
 
-    Costs = commission (bps) + spread (bps) + vol-proportional slippage.
-    Applied on the absolute change in weight for each ticker.
-    We apply a quadratic penalty for high turnover to model market impact aggressively.
+    Costs = commission (bps) + spread (bps) + Square-Root Market Impact.
+    Market Impact = sigma * sqrt(OrderSize / DailyVolume)
     """
     comm_bps = cost_cfg.get("commission_bps", 2.0) / 10_000
     spread_bps = cost_cfg.get("spread_bps", 1.0) / 10_000
-    slip_mult = cost_cfg.get("slippage_vol_multiplier", 0.10)
-
+    
     all_tickers = set(old_weights) | set(new_weights)
     total_cost = 0.0
 
     for ticker in all_tickers:
-        delta = abs(new_weights.get(ticker, 0) - old_weights.get(ticker, 0))
+        w_old = old_weights.get(ticker, 0.0)
+        w_new = new_weights.get(ticker, 0.0)
+        delta = abs(w_new - w_old)
+        
         if delta < 1e-8:
             continue
 
-        # Commission + spread (fixed base) + Market impact penalty for high turnover (quadratic)
-        market_impact = (delta ** 2) * 50.0 / 10_000 # 50 bps impact for 100% delta
-        cost = delta * (comm_bps + spread_bps) + market_impact
-
-        # Volatility-proportional slippage
-        if ticker in daily_ret.columns:
-            idx = daily_ret.index.get_loc(date) if date in daily_ret.index else -1
-            if isinstance(idx, int) and idx >= 20:
-                recent_vol = daily_ret[ticker].iloc[idx - 20 : idx].std()
-                # Multiply slippage by (1 + delta) to penalize high turnover further
-                cost += delta * slip_mult * (1.0 + delta * 2) * (recent_vol if not np.isnan(recent_vol) else 0)
-
-        total_cost += cost
+        # 1. Fixed costs: Commission + spread
+        fixed_cost = delta * (comm_bps + spread_bps)
+        
+        # 2. Square-Root Market Impact: sigma * sqrt(delta / avg_volume)
+        # We use a simplified version for research: sigma * sqrt(delta) * multiplier
+        impact_cost = 0.0
+        if ticker in universe:
+            df = universe[ticker]
+            # Get 20-day average dollar volume
+            if "Volume" in df.columns and "Adj Close" in df.columns:
+                dol_vol = (df["Volume"] * df["Adj Close"]).rolling(20).mean()
+                if date in dol_vol.index:
+                    avg_dol_vol = dol_vol.loc[date]
+                    # We assume a portfolio size for the purpose of the sqrt model relative impact
+                    # Let's say $100M AUM for impact scaling if not specified
+                    aum = cost_cfg.get("assumed_aum", 100_000_000)
+                    order_size = delta * aum
+                    
+                    if avg_dol_vol > 0:
+                        vol_20d = daily_ret[ticker].rolling(20).std() if ticker in daily_ret.columns else 0.02
+                        sigma = vol_20d.loc[date] if date in vol_20d.index else 0.02
+                        # Square-root model: sigma * sqrt(OrderSize / DailyVolume)
+                        impact_cost = delta * sigma * np.sqrt(order_size / (avg_dol_vol + 1e-9))
+        
+        total_cost += fixed_cost + impact_cost
 
     return total_cost
